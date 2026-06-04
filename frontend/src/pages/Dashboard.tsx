@@ -56,6 +56,7 @@ const Dashboard: React.FC = () => {
   const [step2Status, setStep2Status] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [draftId, setDraftId] = useState<number | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [draggedOverSlot, setDraggedOverSlot] = useState<'cover' | 'sizeTag' | 'measurements' | null>(null);
 
   // Visual/UX states
   const [simulatedProgress, setSimulatedProgress] = useState(0);
@@ -255,6 +256,16 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const handleSlotDrop = (e: React.DragEvent, slot: 'cover' | 'sizeTag' | 'measurements') => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    setDraggedOverSlot(null);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileChange(slot, e.dataTransfer.files[0]);
+    }
+  };
+
   const copyToClipboard = (item: ListingItem) => {
     const text = `TITLE:
 ${item.title}
@@ -397,7 +408,17 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
               </div>
 
               {/* Slot 1: Cover */}
-              <div className="relative">
+              <div 
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDraggedOverSlot('cover'); }}
+                onDragLeave={() => setDraggedOverSlot(null)}
+                onDrop={(e) => handleSlotDrop(e, 'cover')}
+                className={`relative rounded-xl border transition-all ${
+                  draggedOverSlot === 'cover' 
+                    ? 'border-blue-500 bg-blue-500/10 scale-[1.01] shadow-lg shadow-blue-500/5' 
+                    : 'border-transparent'
+                }`}
+              >
                 {step1Images.cover ? (
                   <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-xl">
                     <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-slate-900 border border-white/5">
@@ -431,7 +452,17 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
               </div>
 
               {/* Slot 2: Size Tag */}
-              <div className="relative">
+              <div 
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDraggedOverSlot('sizeTag'); }}
+                onDragLeave={() => setDraggedOverSlot(null)}
+                onDrop={(e) => handleSlotDrop(e, 'sizeTag')}
+                className={`relative rounded-xl border transition-all ${
+                  draggedOverSlot === 'sizeTag' 
+                    ? 'border-blue-500 bg-blue-500/10 scale-[1.01] shadow-lg shadow-blue-500/5' 
+                    : 'border-transparent'
+                }`}
+              >
                 {step1Images.sizeTag ? (
                   <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-xl">
                     <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-slate-900 border border-white/5">
@@ -465,7 +496,17 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
               </div>
 
               {/* Slot 3: measurements */}
-              <div className="relative">
+              <div 
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDraggedOverSlot('measurements'); }}
+                onDragLeave={() => setDraggedOverSlot(null)}
+                onDrop={(e) => handleSlotDrop(e, 'measurements')}
+                className={`relative rounded-xl border transition-all ${
+                  draggedOverSlot === 'measurements' 
+                    ? 'border-blue-500 bg-blue-500/10 scale-[1.01] shadow-lg shadow-blue-500/5' 
+                    : 'border-transparent'
+                }`}
+              >
                 {step1Images.measurements ? (
                   <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-xl">
                     <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-slate-900 border border-white/5">
