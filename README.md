@@ -108,6 +108,10 @@ EBAY_DEV_ID=your_dev_id
 EBAY_PROD_CLIENT_ID=your_prod_client_id
 EBAY_PROD_CLIENT_SECRET=your_prod_client_secret
 EBAY_PROD_REDIRECT_URI=your_prod_redirect_ruName
+
+# GitHub integration (Optional)
+# Automatic issue generator for Wife's Feedback Box (needs 'repo' scope token)
+GITHUB_TOKEN=your_github_personal_access_token_here
 ```
 
 ### 2. Start the Application

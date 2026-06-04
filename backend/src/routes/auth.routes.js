@@ -1,4 +1,5 @@
 const express = require('express');
+const axios = require('axios');
 const ebayService = require('../services/ebay.service');
 const db = require('../db/database');
 const router = express.Router();
@@ -139,12 +140,48 @@ router.post('/feedback', (req, res) => {
   db.run(
     'INSERT INTO feedback (message, rating) VALUES (?, ?)',
     [message, rating || null],
-    function(err) {
+    async function(err) {
       if (err) {
         console.error(err);
         return res.status(500).json({ error: 'Database error saving feedback' });
       }
-      res.json({ id: this.lastID, status: 'success' });
+
+      const feedbackId = this.lastID;
+
+      // Automatically create a GitHub issue if GITHUB_TOKEN is configured
+      if (process.env.GITHUB_TOKEN) {
+        try {
+          const ratingSmileys = {
+            1: '😡 Mad',
+            2: '🙁 Sad',
+            3: '😐 Meh',
+            4: '🙂 Good',
+            5: '😍 Love!'
+          };
+          const ratingLabel = rating ? ratingSmileys[rating] : 'N/A';
+          const issueTitle = `[Wife Feedback #${feedbackId}] Rating: ${ratingLabel}`;
+          
+          await axios.post(
+            'https://api.github.com/repos/fixyourprinter/marketmaven/issues',
+            {
+              title: issueTitle,
+              body: `${message}\n\n---\n*Submitted via MarketMaven App Feedback Box (ID: #${feedbackId})*`
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+                Accept: 'application/vnd.github+json',
+                'User-Agent': 'MarketMaven-App'
+              }
+            }
+          );
+          console.log(`Successfully created GitHub issue for feedback #${feedbackId}`);
+        } catch (gitErr) {
+          console.error('Failed to create GitHub issue:', gitErr.response?.data || gitErr.message);
+        }
+      }
+
+      res.json({ id: feedbackId, status: 'success' });
     }
   );
 });
