@@ -277,7 +277,7 @@ class EbayService {
         aspects: {
           Brand: [itemData.brand || 'Unbranded'],
           Size: [itemData.size || 'N/A'],
-          Material: [itemData.material || 'N/A'],
+          Material: resolveEbayMaterials(itemData.material),
           Color: [color],
           Department: [department],
           Type: [type],
@@ -319,7 +319,14 @@ class EbayService {
             if (formattedKey.toLowerCase() === 'upc') {
               body.product.upc = [val];
             } else {
-              body.product.aspects[formattedKey] = [val];
+              // Split values by & or 'and' or '/' to support multi-value aspects
+              let valArray = [val];
+              if (val.includes('&') || val.includes('/') || /\band\b/i.test(val)) {
+                valArray = val.split(/&|\/|\band\b/i).map(v => v.trim()).filter(Boolean);
+              }
+              // Map values to standard eBay options where possible
+              const mappedArray = valArray.map(v => mapToEbayStandardValue(formattedKey, v));
+              body.product.aspects[formattedKey] = mappedArray;
             }
           }
         }
@@ -927,6 +934,79 @@ class EbayService {
       throw error;
     }
   }
+}
+
+function resolveEbayMaterials(materialStr) {
+  if (!materialStr || materialStr.toLowerCase().includes('missing') || materialStr.toLowerCase().includes('not shown')) {
+    return ['N/A'];
+  }
+
+  const materials = new Set();
+  const lower = materialStr.toLowerCase();
+
+  // Find individual standard fibers
+  const fiberMappings = [
+    { pattern: /cotton/i, name: 'Cotton' },
+    { pattern: /polyester/i, name: 'Polyester' },
+    { pattern: /(spandex|elastane|lycra)/i, name: 'Spandex' },
+    { pattern: /(rayon|viscose|modal|lyocell|tencel)/i, name: 'Rayon' },
+    { pattern: /(wool|cashmere|merino|angora)/i, name: 'Wool' },
+    { pattern: /silk/i, name: 'Silk' },
+    { pattern: /linen/i, name: 'Linen' },
+    { pattern: /nylon/i, name: 'Nylon' },
+    { pattern: /acrylic/i, name: 'Acrylic' },
+    { pattern: /(leather|suede)/i, name: 'Leather' }
+  ];
+
+  const foundFibers = [];
+  fiberMappings.forEach(({ pattern, name }) => {
+    if (pattern.test(lower)) {
+      materials.add(name);
+      foundFibers.push(name);
+    }
+  });
+
+  // Determine blends
+  if (foundFibers.length > 1) {
+    if (foundFibers.includes('Cotton')) {
+      materials.add('Cotton Blend');
+    }
+    if (foundFibers.includes('Polyester')) {
+      materials.add('Polyester Blend');
+    }
+    if (foundFibers.includes('Wool')) {
+      materials.add('Wool Blend');
+    }
+  }
+
+  // Always append the original detailed percentage string as a custom value
+  materials.add(materialStr);
+
+  return Array.from(materials);
+}
+
+function mapToEbayStandardValue(aspectKey, value) {
+  const lowerVal = value.toLowerCase();
+  
+  if (aspectKey === 'Rise') {
+    if (lowerVal.includes('mid')) return 'Mid (8.5-10.5 in)';
+    if (lowerVal.includes('ultra low')) return 'Ultra Low (Less than 6.5 in)';
+    if (lowerVal.includes('low')) return 'Low (6.5-8.5 in)';
+    if (lowerVal.includes('high')) return 'High (Greater than 10.5 in)';
+  }
+  
+  if (aspectKey === 'Garment Care') {
+    if (lowerVal.includes('machine')) return 'Machine Washable';
+    if (lowerVal.includes('dry clean')) return 'Dry Clean Only';
+    if (lowerVal.includes('hand wash')) return 'Hand Wash Only';
+  }
+
+  if (['Vintage', 'Handmade', 'Personalize'].includes(aspectKey)) {
+    if (lowerVal === 'yes' || lowerVal === 'true') return 'Yes';
+    if (lowerVal === 'no' || lowerVal === 'false') return 'No';
+  }
+  
+  return value;
 }
 
 function decodeXmlEntities(str) {
