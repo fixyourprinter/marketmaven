@@ -1030,7 +1030,7 @@ const EbayInventory: React.FC = () => {
                       </div>
                     </div>
                     <div className="p-4 bg-slate-900/40 border border-white/5 rounded-xl text-xs text-slate-400">
-                      This will write the value <strong className="text-white">"{bulkValue || 'empty'}"</strong> to the field <strong className="text-white">"{bulkField}"</strong> for all <strong className="text-white">{selectedSkus.size}</strong> selected items directly on eBay.
+                      This will write the value <strong className="text-slate-100">"{bulkValue || 'empty'}"</strong> to the field <strong className="text-slate-100">"{bulkField}"</strong> for all <strong className="text-slate-100">{selectedSkus.size}</strong> selected items directly on eBay.
                     </div>
                   </div>
                 )}
@@ -1038,7 +1038,7 @@ const EbayInventory: React.FC = () => {
                 {!bulkProgress && bulkActionTab === 'ai' && diagnosedItems.length === 0 && (
                   <div className="text-center py-12 space-y-6">
                     <div className="max-w-md mx-auto space-y-2">
-                      <h4 className="text-lg font-bold text-white">Extract Missing Aspects with AI</h4>
+                      <h4 className="text-lg font-bold text-slate-100">Extract Missing Aspects with AI</h4>
                       <p className="text-sm text-slate-400">
                         The AI will scan each listing's description to find details like brand, size, country of origin, rise, pattern, and closure, then populate them as structured eBay specifics.
                       </p>
@@ -1247,7 +1247,7 @@ const EbayInventory: React.FC = () => {
       </AnimatePresence>
 
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-white flex items-center gap-3 font-serif">
+        <h2 className="text-3xl font-bold text-slate-100 flex items-center gap-3 font-serif">
           <Package className="text-blue-400" />
           eBay Live Inventory
         </h2>

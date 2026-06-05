@@ -403,3 +403,69 @@
     filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.5));
   }
 }
+
+/* ==========================================
+   Light Mode Contrast & Aesthetic Refinements
+   ========================================== */
+.light {
+  /* Dynamic replacements for transparent white elements to give them premium contrast */
+  .border-white\/10 {
+    border-color: var(--color-border) !important;
+  }
+  .border-white\/5 {
+    border-color: rgba(0, 0, 0, 0.08) !important;
+  }
+  .bg-white\/5 {
+    background-color: var(--color-slate-800) !important;
+  }
+  .bg-white\/10 {
+    background-color: var(--color-slate-700) !important;
+  }
+  
+  /* Translucent hovers and empty-state placeholders */
+  .bg-white\/\[0\.01\] {
+    background-color: rgba(0, 0, 0, 0.015) !important;
+  }
+  .bg-white\/\[0\.02\] {
+    background-color: rgba(0, 0, 0, 0.03) !important;
+  }
+  .bg-white\/\[0\.03\] {
+    background-color: rgba(0, 0, 0, 0.045) !important;
+  }
+  .bg-white\/\[0\.04\] {
+    background-color: rgba(0, 0, 0, 0.06) !important;
+  }
+
+  /* Map dark borders in light mode to standard theme borders */
+  .border-slate-900 {
+    border-color: var(--color-border) !important;
+  }
+  .border-slate-800 {
+    border-color: var(--color-border) !important;
+  }
+
+  /* Dynamic sub-panel backgrounds */
+  .bg-slate-900\/50 {
+    background-color: rgba(0, 0, 0, 0.02) !important;
+  }
+  .bg-slate-900 {
+    background-color: var(--color-slate-800) !important;
+  }
+  .bg-slate-950\/90 {
+    background-color: rgba(255, 255, 255, 0.9) !important;
+  }
+
+  /* Table head styling */
+  th {
+    color: var(--color-slate-400) !important;
+  }
+
+  /* Make sure disabled buttons have readable text */
+  button:disabled {
+    color: var(--color-slate-400) !important;
+    opacity: 0.55 !important;
+    background-color: var(--color-slate-800) !important;
+    border-color: var(--color-border) !important;
+  }
+}
+

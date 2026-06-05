@@ -420,7 +420,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
               <Camera className="text-blue-400" size={24} />
             </div>
             <div className="space-y-1.5 flex-1 pr-6">
-              <h4 className="font-serif text-lg font-bold text-white leading-tight">Mobile Capture Hub</h4>
+              <h4 className="font-serif text-lg font-bold text-slate-100 leading-tight">Mobile Capture Hub</h4>
               <p className="text-xs text-slate-400 leading-relaxed">
                 Snap the first 3 critical photos to start background AI extraction immediately, then continue taking detail photos while it thinks.
               </p>
@@ -489,7 +489,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
           {(step1Status === 'idle' || step1Status === 'error') && (
             <div className="space-y-5">
               <div className="text-center pb-2 border-b border-white/5">
-                <h3 className="font-serif text-lg font-bold text-white flex items-center justify-center gap-2">
+                <h3 className="font-serif text-lg font-bold text-slate-100 flex items-center justify-center gap-2">
                   <Sparkles size={16} className="text-blue-500" />
                   AI Process: The Big Three
                 </h3>
@@ -511,7 +511,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                 }`}
               >
                 {step1Images.cover ? (
-                  <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-xl">
+                  <div className="flex items-center gap-3 p-2 bg-slate-950/5 border border-border rounded-xl">
                     <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-slate-900 border border-white/5">
                       <img src={URL.createObjectURL(step1Images.cover)} alt="" className="w-full h-full object-cover" />
                     </div>
@@ -521,7 +521,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                     </div>
                     <button 
                       onClick={() => handleFileChange('cover', null)}
-                      className="p-1 hover:text-red-400 hover:bg-white/5 rounded transition-all cursor-pointer"
+                      className="p-1 hover:text-red-400 hover:bg-slate-950/10 rounded transition-all cursor-pointer"
                     >
                       <X size={16} />
                     </button>
@@ -529,7 +529,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                 ) : (
                   <button 
                     onClick={() => coverRef.current?.click()}
-                    className="w-full flex items-center gap-3 p-3.5 border border-dashed border-white/10 hover:border-blue-500/30 bg-white/[0.01] hover:bg-white/[0.03] rounded-xl text-left transition-all group cursor-pointer"
+                    className="w-full flex items-center gap-3 p-3.5 border border-dashed border-border hover:border-blue-500/30 bg-slate-950/5 hover:bg-slate-950/10 rounded-xl text-left transition-all group cursor-pointer"
                   >
                     <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0 border border-blue-500/20 group-hover:scale-105 transition-transform">
                       <Camera className="text-blue-400" size={16} />
@@ -555,7 +555,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                 }`}
               >
                 {step1Images.materialTag ? (
-                  <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-xl">
+                  <div className="flex items-center gap-3 p-2 bg-slate-950/5 border border-border rounded-xl">
                     <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-slate-900 border border-white/5">
                       <img src={URL.createObjectURL(step1Images.materialTag)} alt="" className="w-full h-full object-cover" />
                     </div>
@@ -565,7 +565,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                     </div>
                     <button 
                       onClick={() => handleFileChange('materialTag', null)}
-                      className="p-1 hover:text-red-400 hover:bg-white/5 rounded transition-all cursor-pointer"
+                      className="p-1 hover:text-red-400 hover:bg-slate-950/10 rounded transition-all cursor-pointer"
                     >
                       <X size={16} />
                     </button>
@@ -573,7 +573,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                 ) : (
                   <button 
                     onClick={() => materialTagRef.current?.click()}
-                    className="w-full flex items-center gap-3 p-3.5 border border-dashed border-white/10 hover:border-blue-500/30 bg-white/[0.01] hover:bg-white/[0.03] rounded-xl text-left transition-all group cursor-pointer"
+                    className="w-full flex items-center gap-3 p-3.5 border border-dashed border-border hover:border-blue-500/30 bg-slate-950/5 hover:bg-slate-950/10 rounded-xl text-left transition-all group cursor-pointer"
                   >
                     <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0 border border-blue-500/20 group-hover:scale-105 transition-transform">
                       <Tag className="text-blue-400" size={16} />
@@ -599,7 +599,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                 }`}
               >
                 {step1Images.sizeTag ? (
-                  <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-xl">
+                  <div className="flex items-center gap-3 p-2 bg-slate-950/5 border border-border rounded-xl">
                     <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-slate-900 border border-white/5">
                       <img src={URL.createObjectURL(step1Images.sizeTag)} alt="" className="w-full h-full object-cover" />
                     </div>
@@ -609,7 +609,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                     </div>
                     <button 
                       onClick={() => handleFileChange('sizeTag', null)}
-                      className="p-1 hover:text-red-400 hover:bg-white/5 rounded transition-all cursor-pointer"
+                      className="p-1 hover:text-red-400 hover:bg-slate-950/10 rounded transition-all cursor-pointer"
                     >
                       <X size={16} />
                     </button>
@@ -617,7 +617,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                 ) : (
                   <button 
                     onClick={() => sizeTagRef.current?.click()}
-                    className="w-full flex items-center gap-3 p-3.5 border border-dashed border-white/10 hover:border-blue-500/30 bg-white/[0.01] hover:bg-white/[0.03] rounded-xl text-left transition-all group cursor-pointer"
+                    className="w-full flex items-center gap-3 p-3.5 border border-dashed border-border hover:border-blue-500/30 bg-slate-950/5 hover:bg-slate-950/10 rounded-xl text-left transition-all group cursor-pointer"
                   >
                     <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0 border border-blue-500/20 group-hover:scale-105 transition-transform">
                       <Layers className="text-blue-400" size={16} />
@@ -669,7 +669,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-xs font-bold text-white">AI Analysis Status</h4>
+                    <h4 className="text-xs font-bold text-slate-100">AI Analysis Status</h4>
                     <p className="text-[10px] text-slate-400 truncate mt-0.5 h-3.5">
                       {step1Status === 'uploading' && "Uploading Big Three photos..."}
                       {step1Status === 'processing' && AI_STATUS_MESSAGES[statusMessageIndex]}
@@ -702,11 +702,11 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
 
                 <div className="grid grid-cols-4 gap-2">
                   {additionalImages.map((file, idx) => (
-                    <div key={idx} className="relative aspect-square rounded-lg border border-white/5 overflow-hidden bg-slate-900">
+                    <div key={idx} className="relative aspect-square rounded-lg border border-border overflow-hidden bg-slate-900">
                       <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
                       <button 
                         onClick={() => setAdditionalImages(prev => prev.filter((_, i) => i !== idx))}
-                        className="absolute top-1 right-1 p-0.5 bg-black/60 rounded text-slate-400 hover:text-white transition-colors cursor-pointer border border-white/5"
+                        className="absolute top-1 right-1 p-0.5 bg-black/60 rounded text-slate-400 hover:text-white transition-colors cursor-pointer border border-border"
                       >
                         <X size={10} />
                       </button>
@@ -716,7 +716,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                   {additionalImages.length < 7 && (
                     <button 
                       onClick={() => additionalRef.current?.click()}
-                      className="aspect-square border border-dashed border-white/10 hover:border-blue-500/30 bg-white/[0.01] hover:bg-white/[0.03] rounded-lg flex flex-col items-center justify-center p-1 transition-all text-slate-500 hover:text-slate-300 cursor-pointer"
+                      className="aspect-square border border-dashed border-border hover:border-blue-500/30 bg-slate-950/5 hover:bg-slate-950/10 rounded-lg flex flex-col items-center justify-center p-1 transition-all text-slate-500 hover:text-slate-300 cursor-pointer"
                     >
                       <Plus size={16} />
                       <span className="text-[8px] font-bold mt-1">Add Detail</span>
@@ -726,7 +726,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
               </div>
 
               {/* Finish Actions */}
-              <div className="pt-2 border-t border-white/5 space-y-2">
+              <div className="pt-2 border-t border-border space-y-2">
                 {step1Status === 'success' ? (
                   <button 
                     onClick={handleUploadRemaining}
@@ -1029,7 +1029,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                                     <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/20 flex items-center gap-3 animate-pulse">
                                       <RefreshCw size={18} className="text-blue-400 animate-spin flex-shrink-0" />
                                       <div className="text-xs">
-                                        <span className="font-bold text-white block">Visual AI Agent is analyzing this item</span>
+                                        <span className="font-bold text-slate-100 block">Visual AI Agent is analyzing this item</span>
                                         <span className="text-slate-400 font-sans">Extracting specifications, dimensions, brand tags, and generating descriptions. It will complete in 60-90 seconds.</span>
                                       </div>
                                     </div>
@@ -1039,7 +1039,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                                     <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/20 flex items-center gap-3">
                                       <X size={18} className="text-red-400 flex-shrink-0" />
                                       <div className="text-xs">
-                                        <span className="font-bold text-white block">AI Processing Failed</span>
+                                        <span className="font-bold text-slate-100 block">AI Processing Failed</span>
                                         <span className="text-slate-400 font-sans">Please make sure the Ollama server is running and connected. You can delete this item and try uploading again.</span>
                                       </div>
                                     </div>
@@ -1047,7 +1047,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
 
                                   {editingDraftId === item.id ? (
                                     <div className="space-y-6 p-5 rounded-xl bg-blue-500/5 border border-blue-500/10">
-                                      <div className="flex justify-between items-center pb-2 border-b border-white/5">
+                                      <div className="flex justify-between items-center pb-2 border-b border-border">
                                         <h4 className="text-xs font-bold text-blue-400 uppercase tracking-widest">Import Comps & Edit Draft Details</h4>
                                         <button 
                                           onClick={() => setEditingDraftId(null)}
