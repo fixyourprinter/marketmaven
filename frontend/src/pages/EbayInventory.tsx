@@ -24,12 +24,40 @@ interface InventoryItem {
   status?: string;
 }
 
+const COMMON_COUNTRIES = [
+  "United States",
+  "Vietnam",
+  "China",
+  "Bangladesh",
+  "India",
+  "Mexico",
+  "Indonesia",
+  "Cambodia",
+  "Honduras",
+  "El Salvador",
+  "Pakistan",
+  "Italy",
+  "Turkey",
+  "Sri Lanka",
+  "Philippines",
+  "Nicaragua",
+  "Thailand",
+  "Canada",
+  "Egypt",
+  "Guatemala",
+  "Peru",
+  "Madagascar",
+  "Dominican Republic",
+  "Unknown"
+];
+
 const EbayInventory: React.FC = () => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [selectedSkus, setSelectedSkus] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  const [customCountryMode, setCustomCountryMode] = useState(false);
 
   const fetchInventory = async () => {
     setLoading(true);
@@ -88,12 +116,15 @@ const EbayInventory: React.FC = () => {
   const [isBulkEdit, setIsBulkEdit] = useState(false);
 
   const handleEdit = (item: InventoryItem) => {
+    const val = item.product?.aspects?.['Country/Region of Manufacture']?.[0] || '';
+    setCustomCountryMode(val !== '' && !COMMON_COUNTRIES.includes(val));
     setEditingItem(JSON.parse(JSON.stringify(item)));
     setIsBulkEdit(false);
     setIsEditModalOpen(true);
   };
 
   const handleBulkEdit = () => {
+    setCustomCountryMode(false);
     setEditingItem({
       sku: 'BULK',
       product: { title: '', aspects: {} },
@@ -206,22 +237,61 @@ const EbayInventory: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2">Country of Origin</label>
-                    <input 
-                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans"
-                      placeholder={isBulkEdit ? "New country of origin for all..." : "e.g. United States"}
-                      value={editingItem.product?.aspects?.['Country/Region of Manufacture']?.[0] || ''}
-                      onChange={(e) => setEditingItem({
-                        ...editingItem, 
-                        product: {
-                          ...editingItem.product, 
-                          aspects: {
-                            ...(editingItem.product?.aspects || {}), 
-                            'Country/Region of Manufacture': [e.target.value]
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block">Country of Origin</label>
+                      <button 
+                        type="button"
+                        onClick={() => setCustomCountryMode(!customCountryMode)}
+                        className="text-[10px] text-blue-400 hover:text-white font-semibold transition-colors cursor-pointer"
+                      >
+                        {customCountryMode ? "Choose from List" : "Type manually"}
+                      </button>
+                    </div>
+                    {customCountryMode ? (
+                      <input 
+                        className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                        placeholder="Type country of origin manually..."
+                        value={editingItem.product?.aspects?.['Country/Region of Manufacture']?.[0] || ''}
+                        onChange={(e) => setEditingItem({
+                          ...editingItem, 
+                          product: {
+                            ...editingItem.product, 
+                            aspects: {
+                              ...(editingItem.product?.aspects || {}), 
+                              'Country/Region of Manufacture': [e.target.value]
+                            }
                           }
-                        }
-                      })}
-                    />
+                        })}
+                      />
+                    ) : (
+                      <select
+                        className="w-full bg-[#151a18] border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                        value={editingItem.product?.aspects?.['Country/Region of Manufacture']?.[0] || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === 'other') {
+                            setCustomCountryMode(true);
+                          } else {
+                            setEditingItem({
+                              ...editingItem, 
+                              product: {
+                                ...editingItem.product, 
+                                aspects: {
+                                  ...(editingItem.product?.aspects || {}), 
+                                  'Country/Region of Manufacture': val ? [val] : []
+                                }
+                              }
+                            });
+                          }
+                        }}
+                      >
+                        <option value="">-- Select Country --</option>
+                        {COMMON_COUNTRIES.map(c => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                        <option value="other">Other (Type manually)...</option>
+                      </select>
+                    )}
                   </div>
                 </div>
                 {!isBulkEdit && (
