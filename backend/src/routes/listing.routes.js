@@ -6,6 +6,7 @@ const Jimp = require('jimp');
 const { processImages, extractAspectsFromText } = require('../services/ai.service');
 const ebayService = require('../services/ebay.service');
 const db = require('../db/database');
+const authenticateUser = require('../middleware/auth.middleware');
 
 const router = express.Router();
 
@@ -46,7 +47,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // Route to handle multiple image uploads and process them
-router.post('/process', upload.array('images', 10), async (req, res) => {
+router.post('/process', authenticateUser, upload.array('images', 10), async (req, res) => {
   try {
     const files = req.files;
     if (!files || files.length === 0) {
@@ -59,9 +60,9 @@ router.post('/process', upload.array('images', 10), async (req, res) => {
     // Save item details draft with 'processing' status and respond immediately
     db.run(
       `INSERT INTO items (
-        title, status, images
-      ) VALUES (?, ?, ?)`,
-      ['AI Analysis in progress...', 'processing', imagesJson],
+        title, status, images, user_id
+      ) VALUES (?, ?, ?, ?)`,
+      ['AI Analysis in progress...', 'processing', imagesJson, req.userId],
       function(err) {
         if (err) {
           console.error(err);
@@ -92,7 +93,7 @@ router.post('/process', upload.array('images', 10), async (req, res) => {
                     style_details = ?, country_of_origin = ?, age = ?, retail_price = ?, 
                     etsy_tags = ?, brand = ?, size = ?, weight = ?, inventory_code = ?, category = ?, 
                     status = 'draft'
-                   WHERE id = ?`,
+                   WHERE id = ? AND user_id = ?`,
                   [
                     aiResult.title,
                     aiResult.condition,
@@ -108,7 +109,8 @@ router.post('/process', upload.array('images', 10), async (req, res) => {
                     aiResult.weight,
                     aiResult.inventory_code || `LM-${newItemId}`,
                     aiResult.category,
-                    newItemId
+                    newItemId,
+                    req.userId
                   ],
                   (updateErr) => {
                     if (updateErr) {
@@ -122,16 +124,16 @@ router.post('/process', upload.array('images', 10), async (req, res) => {
               .catch((aiError) => {
                 console.error(`[AI] Background processing failed for item #${newItemId}:`, aiError.message);
                 db.run(
-                  "UPDATE items SET title = 'AI Processing Failed. Please try again.', status = 'error' WHERE id = ?",
-                  [newItemId]
+                  "UPDATE items SET title = 'AI Processing Failed. Please try again.', status = 'error' WHERE id = ? AND user_id = ?",
+                  [newItemId, req.userId]
                 );
               });
 
           } catch (cropErr) {
             console.error(`[Jimp] Background cropping failed for item #${newItemId}:`, cropErr.message);
             db.run(
-              "UPDATE items SET title = 'Image cropping failed. Please try again.', status = 'error' WHERE id = ?",
-              [newItemId]
+              "UPDATE items SET title = 'Image cropping failed. Please try again.', status = 'error' WHERE id = ? AND user_id = ?",
+              [newItemId, req.userId]
             );
           }
         });
@@ -145,9 +147,10 @@ router.post('/process', upload.array('images', 10), async (req, res) => {
 });
 
 // Get all items
-router.get('/items', (req, res) => {
-  db.all('SELECT * FROM items ORDER BY created_at DESC', [], (err, rows) => {
+router.get('/items', authenticateUser, (req, res) => {
+  db.all('SELECT * FROM items WHERE user_id = ? ORDER BY created_at DESC', [req.userId], (err, rows) => {
     if (err) {
+      console.error(err);
       return res.status(500).json({ error: 'Database error' });
     }
     res.json(rows);
@@ -155,18 +158,18 @@ router.get('/items', (req, res) => {
 });
 
 // List an item on eBay
-router.post('/items/:id/ebay', async (req, res) => {
+router.post('/items/:id/ebay', authenticateUser, async (req, res) => {
   const { id } = req.params;
   
-  db.get('SELECT * FROM items WHERE id = ?', [id], async (err, item) => {
+  db.get('SELECT * FROM items WHERE id = ? AND user_id = ?', [id, req.userId], async (err, item) => {
     if (err || !item) {
       return res.status(404).json({ error: 'Item not found' });
     }
 
     try {
-      const result = await ebayService.createDraft(item);
+      const result = await ebayService.createDraft(item, req.userId);
       if (result.status === 'success') {
-        db.run('UPDATE items SET status = ? WHERE id = ?', ['listed', id], (updateErr) => {
+        db.run('UPDATE items SET status = ? WHERE id = ? AND user_id = ?', ['listed', id, req.userId], (updateErr) => {
           if (updateErr) {
             console.error('Failed to update status to listed:', updateErr.message);
           } else {
@@ -183,7 +186,7 @@ router.post('/items/:id/ebay', async (req, res) => {
 });
 
 // Route to append additional images to an existing item
-router.post('/items/:id/images', upload.array('images', 10), async (req, res) => {
+router.post('/items/:id/images', authenticateUser, upload.array('images', 10), async (req, res) => {
   try {
     const { id } = req.params;
     const files = req.files;
@@ -194,7 +197,7 @@ router.post('/items/:id/images', upload.array('images', 10), async (req, res) =>
     const newFilePaths = files.map(file => file.path);
 
     // Retrieve existing images from DB
-    db.get('SELECT images FROM items WHERE id = ?', [id], (err, item) => {
+    db.get('SELECT images FROM items WHERE id = ? AND user_id = ?', [id, req.userId], (err, item) => {
       if (err || !item) {
         return res.status(404).json({ error: 'Item not found' });
       }
@@ -211,8 +214,8 @@ router.post('/items/:id/images', upload.array('images', 10), async (req, res) =>
       const updatedImages = [...currentImages, ...newFilePaths];
 
       db.run(
-        'UPDATE items SET images = ? WHERE id = ?',
-        [JSON.stringify(updatedImages), id],
+        'UPDATE items SET images = ? WHERE id = ? AND user_id = ?',
+        [JSON.stringify(updatedImages), id, req.userId],
         function(updateErr) {
           if (updateErr) {
             console.error(updateErr);
@@ -245,16 +248,16 @@ router.post('/items/:id/images', upload.array('images', 10), async (req, res) =>
 });
 
 // Delete a local item
-router.delete('/items/:id', (req, res) => {
+router.delete('/items/:id', authenticateUser, (req, res) => {
   const { id } = req.params;
   
-  db.get('SELECT images FROM items WHERE id = ?', [id], (err, item) => {
+  db.get('SELECT images FROM items WHERE id = ? AND user_id = ?', [id, req.userId], (err, item) => {
     if (err) {
       console.error(err);
       return res.status(500).json({ error: 'Database error' });
     }
     
-    db.run('DELETE FROM items WHERE id = ?', [id], function(deleteErr) {
+    db.run('DELETE FROM items WHERE id = ? AND user_id = ?', [id, req.userId], function(deleteErr) {
       if (deleteErr) {
         console.error(deleteErr);
         return res.status(500).json({ error: 'Failed to delete item from database' });
@@ -270,7 +273,7 @@ router.delete('/items/:id', (req, res) => {
 });
 
 // Update a local item
-router.put('/items/:id', (req, res) => {
+router.put('/items/:id', authenticateUser, (req, res) => {
   const { id } = req.params;
   const {
     title, brand, size, weight, material, country_of_origin,
@@ -282,11 +285,11 @@ router.put('/items/:id', (req, res) => {
       title = ?, brand = ?, size = ?, weight = ?, material = ?, 
       country_of_origin = ?, age = ?, retail_price = ?, etsy_tags = ?, 
       style_details = ?, category = ?, condition = ?
-     WHERE id = ?`,
+     WHERE id = ? AND user_id = ?`,
     [
       title, brand, size, weight, material, country_of_origin,
       age, retail_price, etsy_tags, style_details, category, condition,
-      id
+      id, req.userId
     ],
     function(err) {
       if (err) {
@@ -298,15 +301,38 @@ router.put('/items/:id', (req, res) => {
   );
 });
 
-// Import details from eBay sold/active comp by Item ID
-router.post('/import-comps', async (req, res) => {
+// Import details from eBay sold/active comp by Item ID (updates cache too)
+router.post('/import-comps', authenticateUser, async (req, res) => {
   const { itemId, draftId } = req.body;
   if (!itemId) {
     return res.status(400).json({ error: 'Item ID is required' });
   }
 
   try {
-    const details = await ebayService.fetchExternalItemDetails(itemId);
+    const details = await ebayService.fetchExternalItemDetails(itemId, req.userId);
+    
+    // Cache the specifics, description, and price in local db
+    db.run(
+      `INSERT INTO ebay_cache (user_id, listing_id, specifics, description, price, last_updated)
+       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(user_id, listing_id) DO UPDATE SET
+         specifics = excluded.specifics,
+         description = excluded.description,
+         price = excluded.price,
+         last_updated = CURRENT_TIMESTAMP`,
+      [
+        req.userId,
+        itemId,
+        JSON.stringify(details.specifics || {}),
+        details.description || '',
+        details.price ? JSON.stringify(details.price) : null
+      ],
+      (err) => {
+        if (err) {
+          console.error('[Database] Cache write error:', err.message);
+        }
+      }
+    );
     
     // Map specifics to local listing fields
     const specs = details.specifics || {};
@@ -335,14 +361,15 @@ router.post('/import-comps', async (req, res) => {
           material = ?,
           country_of_origin = ?,
           style_details = ?
-         WHERE id = ?`,
+         WHERE id = ? AND user_id = ?`,
         [
           brand || '',
           size || '',
           material || '',
           country || '',
           styleDetails || '',
-          draftId
+          draftId,
+          req.userId
         ],
         function(updateErr) {
           if (updateErr) {
@@ -350,7 +377,7 @@ router.post('/import-comps', async (req, res) => {
             return res.status(500).json({ error: 'Failed to update draft with comp details' });
           }
           // Fetch the updated item and return it
-          db.get('SELECT * FROM items WHERE id = ?', [draftId], (err, row) => {
+          db.get('SELECT * FROM items WHERE id = ? AND user_id = ?', [draftId, req.userId], (err, row) => {
             if (err || !row) {
               return res.status(500).json({ error: 'Failed to retrieve updated item' });
             }
@@ -367,7 +394,8 @@ router.post('/import-comps', async (req, res) => {
         country_of_origin: country,
         style_details: styleDetails,
         description: details.description,
-        specifics: details.specifics
+        specifics: details.specifics,
+        price: details.price
       });
     }
   } catch (error) {
@@ -376,7 +404,7 @@ router.post('/import-comps', async (req, res) => {
 });
 
 // Bulk extract aspects using AI from title and description
-router.post('/ebay/inventory/bulk-repair-extract', async (req, res) => {
+router.post('/ebay/inventory/bulk-repair-extract', authenticateUser, async (req, res) => {
   const { items } = req.body;
   if (!items || !Array.isArray(items)) {
     return res.status(400).json({ error: 'Items array is required' });
@@ -401,14 +429,14 @@ router.post('/ebay/inventory/bulk-repair-extract', async (req, res) => {
 });
 
 // Bulk revise traditional listings
-router.post('/ebay/inventory/bulk-revise', async (req, res) => {
+router.post('/ebay/inventory/bulk-revise', authenticateUser, async (req, res) => {
   const { items } = req.body;
   if (!items || !Array.isArray(items)) {
     return res.status(400).json({ error: 'Items array is required' });
   }
 
   try {
-    const results = await ebayService.bulkReviseTraditionalListings(items);
+    const results = await ebayService.bulkReviseTraditionalListings(items, req.userId);
     res.json({ results });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -416,4 +444,3 @@ router.post('/ebay/inventory/bulk-revise', async (req, res) => {
 });
 
 module.exports = router;
-

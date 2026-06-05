@@ -14,6 +14,10 @@ interface InventoryItem {
     aspects?: Record<string, string[]>;
     imageUrls?: string[];
   };
+  price?: {
+    value: string;
+    currency: string;
+  };
   condition: string;
   availability: {
     shipToLocationAvailability: {
@@ -62,6 +66,7 @@ const COMMON_SIZES = [
 
 const COLUMN_LABELS: Record<string, string> = {
   sku: 'SKU / Listing ID',
+  price: 'Price',
   qty: 'Quantity',
   status: 'Status',
   country: 'Country of Origin',
@@ -102,6 +107,7 @@ const EbayInventory: React.FC = () => {
   const [showColumnDropdown, setShowColumnDropdown] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
     sku: true,
+    price: true,
     qty: true,
     status: true,
     country: true,
@@ -223,6 +229,9 @@ const EbayInventory: React.FC = () => {
     } else if (sortField === 'endTime') {
       valA = a.endTime || '';
       valB = b.endTime || '';
+    } else if (sortField === 'price') {
+      valA = a.price ? parseFloat(a.price.value) || 0 : 0;
+      valB = b.price ? parseFloat(b.price.value) || 0 : 0;
     } else {
       let aspectKey = sortField;
       if (sortField === 'country') {
@@ -500,6 +509,43 @@ const EbayInventory: React.FC = () => {
   };
 
   const [expandedSku, setExpandedSku] = useState<string | null>(null);
+
+  const handleToggleExpand = async (item: InventoryItem) => {
+    if (expandedSku === item.sku) {
+      setExpandedSku(null);
+      return;
+    }
+    setExpandedSku(item.sku);
+
+    if (item.isTraditional && item.listingId && !item.product.description) {
+      try {
+        const detailRes = await axios.post('/api/listings/import-comps', { itemId: item.listingId });
+        const specifics = detailRes.data.specifics || {};
+        
+        const formattedAspects: Record<string, string[]> = {};
+        for (const [k, v] of Object.entries(specifics)) {
+          formattedAspects[k] = [String(v)];
+        }
+
+        setItems(prevItems => prevItems.map(prevItem => {
+          if (prevItem.sku === item.sku) {
+            return {
+              ...prevItem,
+              price: detailRes.data.price || prevItem.price,
+              product: {
+                ...prevItem.product,
+                description: detailRes.data.description,
+                aspects: formattedAspects
+              }
+            };
+          }
+          return prevItem;
+        }));
+      } catch (err) {
+        console.error('Failed to load item specifics on expand:', err);
+      }
+    }
+  };
 
   return (
     <div className="space-y-8 pb-20">
@@ -1307,7 +1353,7 @@ const EbayInventory: React.FC = () => {
                 {/* Dynamic Columns Headers */}
                 {Object.entries(visibleColumns).map(([colId, visible]) => {
                   if (!visible) return null;
-                  const isCentered = ['qty', 'status', 'endTime'].includes(colId);
+                  const isCentered = ['qty', 'status', 'endTime', 'price'].includes(colId);
                   return (
                     <th key={colId} className={`pb-4 ${isCentered ? 'text-center' : ''}`}>
                       <button 
@@ -1335,7 +1381,7 @@ const EbayInventory: React.FC = () => {
                     <motion.tr 
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      onClick={() => setExpandedSku(expandedSku === item.sku ? null : item.sku)}
+                      onClick={() => handleToggleExpand(item)}
                       className={`group hover:bg-slate-900/10 transition-all cursor-pointer ${selectedSkus.has(item.sku) ? 'bg-blue-500/5 ring-1 ring-blue-500/20' : 'bg-slate-950/20'}`}
                     >
                       <td className="py-6 pl-4 rounded-l-xl">
@@ -1397,6 +1443,22 @@ const EbayInventory: React.FC = () => {
                           );
                         }
                         
+                        if (colId === 'price') {
+                          const priceObj = item.price;
+                          if (!priceObj || !priceObj.value) {
+                            return <td key={colId} className="py-6 text-center text-slate-500 text-xs font-semibold font-mono">-</td>;
+                          }
+                          const formattedPrice = new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: priceObj.currency || 'USD'
+                          }).format(parseFloat(priceObj.value));
+                          return (
+                            <td key={colId} className="py-6 text-center text-slate-200 text-xs font-bold font-mono">
+                              {formattedPrice}
+                            </td>
+                          );
+                        }
+
                         if (colId === 'qty') {
                           return (
                             <td key={colId} className="py-6 text-center">

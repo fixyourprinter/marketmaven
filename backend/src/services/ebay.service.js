@@ -4,62 +4,58 @@ const path = require('path');
 const db = require('../db/database');
 
 class EbayService {
-  constructor() {
-    this.clientId = null;
-    this.clientSecret = null;
-    this.ruName = null;
-    this.accessToken = null;
-    this.isSandbox = true;
-    this.baseUrl = 'https://api.sandbox.ebay.com';
-    this.authUrl = 'https://auth.sandbox.ebay.com';
+  constructor() {}
 
-    this.refreshConfig().catch(err => console.error('EbayService initialization error:', err.message));
-  }
-
-  refreshConfig() {
+  async loadUserConfig(userId) {
     return new Promise((resolve, reject) => {
-      db.get("SELECT value FROM settings WHERE key = 'ebay_env'", [], (err, row) => {
+      db.all("SELECT key, value FROM settings WHERE user_id = ?", [userId], (err, rows) => {
         if (err) {
-          console.error('Failed to load eBay environment setting from DB:', err.message);
-          this.isSandbox = true;
-          this.clientId = process.env.EBAY_CLIENT_ID;
-          this.clientSecret = process.env.EBAY_CLIENT_SECRET;
-          this.ruName = process.env.EBAY_REDIRECT_URI;
-        } else {
-          const envSetting = row ? row.value : 'sandbox';
-          this.isSandbox = envSetting === 'sandbox';
-
-          if (this.isSandbox) {
-            this.clientId = process.env.EBAY_SANDBOX_CLIENT_ID || process.env.EBAY_CLIENT_ID;
-            this.clientSecret = process.env.EBAY_SANDBOX_CLIENT_SECRET || process.env.EBAY_CLIENT_SECRET;
-            this.ruName = process.env.EBAY_SANDBOX_REDIRECT_URI || process.env.EBAY_REDIRECT_URI;
-          } else {
-            this.clientId = process.env.EBAY_PROD_CLIENT_ID || process.env.EBAY_CLIENT_ID;
-            this.clientSecret = process.env.EBAY_PROD_CLIENT_SECRET || process.env.EBAY_CLIENT_SECRET;
-            this.ruName = process.env.EBAY_PROD_REDIRECT_URI || process.env.EBAY_REDIRECT_URI;
-          }
+          return reject(err);
         }
-
-        // Load the stored access token from the database if present for this environment
-        const dbKey = `ebay_access_token_${this.isSandbox ? 'sandbox' : 'prod'}`;
-        db.get("SELECT value FROM settings WHERE key = ?", [dbKey], (err, tokenRow) => {
-          if (!err && tokenRow) {
-            this.accessToken = tokenRow.value;
-            console.log(`[EbayService] Loaded stored accessToken from DB for ${this.isSandbox ? 'SANDBOX' : 'PRODUCTION'}`);
-          } else {
-            this.accessToken = null;
-          }
-          this.baseUrl = this.isSandbox ? 'https://api.sandbox.ebay.com' : 'https://api.ebay.com';
-          this.authUrl = this.isSandbox ? 'https://auth.sandbox.ebay.com' : 'https://auth.ebay.com';
-
-          console.log(`EbayService configured for: ${this.isSandbox ? 'SANDBOX' : 'PRODUCTION'}`);
-          resolve();
+        const settings = {};
+        if (rows) {
+          rows.forEach(r => {
+            settings[r.key] = r.value;
+          });
+        }
+        
+        const env = settings.ebay_env || 'sandbox';
+        const isSandbox = env === 'sandbox';
+        
+        let clientId = null;
+        let clientSecret = null;
+        let ruName = null;
+        
+        if (isSandbox) {
+          clientId = process.env.EBAY_SANDBOX_CLIENT_ID || process.env.EBAY_CLIENT_ID;
+          clientSecret = process.env.EBAY_SANDBOX_CLIENT_SECRET || process.env.EBAY_CLIENT_SECRET;
+          ruName = process.env.EBAY_SANDBOX_REDIRECT_URI || process.env.EBAY_REDIRECT_URI;
+        } else {
+          clientId = process.env.EBAY_PROD_CLIENT_ID || process.env.EBAY_CLIENT_ID;
+          clientSecret = process.env.EBAY_PROD_CLIENT_SECRET || process.env.EBAY_CLIENT_SECRET;
+          ruName = process.env.EBAY_PROD_REDIRECT_URI || process.env.EBAY_REDIRECT_URI;
+        }
+        
+        const dbKey = `ebay_access_token_${isSandbox ? 'sandbox' : 'prod'}`;
+        const accessToken = settings[dbKey] || null;
+        const baseUrl = isSandbox ? 'https://api.sandbox.ebay.com' : 'https://api.ebay.com';
+        const authUrl = isSandbox ? 'https://auth.sandbox.ebay.com' : 'https://auth.ebay.com';
+        
+        resolve({
+          isSandbox,
+          clientId,
+          clientSecret,
+          ruName,
+          accessToken,
+          baseUrl,
+          authUrl
         });
       });
     });
   }
 
-  getAuthUrl() {
+  async getAuthUrl(userId) {
+    const config = await this.loadUserConfig(userId);
     const scopes = [
       'https://api.ebay.com/oauth/api_scope',
       'https://api.ebay.com/oauth/api_scope/sell.inventory',
@@ -67,19 +63,20 @@ class EbayService {
       'https://api.ebay.com/oauth/api_scope/sell.account'
     ].join(' ');
     
-    const encodedRedirect = encodeURIComponent(this.ruName);
+    const encodedRedirect = encodeURIComponent(config.ruName);
     const encodedScopes = encodeURIComponent(scopes);
     
-    return `${this.authUrl}/oauth2/authorize?client_id=${this.clientId}&response_type=code&redirect_uri=${encodedRedirect}&scope=${encodedScopes}`;
+    return `${config.authUrl}/oauth2/authorize?client_id=${config.clientId}&response_type=code&redirect_uri=${encodedRedirect}&scope=${encodedScopes}&state=${userId}`;
   }
 
-  async exchangeCodeForToken(code) {
-    const auth = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
-    const tokenUrl = `${this.baseUrl}/identity/v1/oauth2/token`;
+  async exchangeCodeForToken(code, userId) {
+    const config = await this.loadUserConfig(userId);
+    const auth = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64');
+    const tokenUrl = `${config.baseUrl}/identity/v1/oauth2/token`;
     
     try {
       const response = await axios.post(tokenUrl, 
-        `grant_type=authorization_code&code=${code}&redirect_uri=${this.ruName}`,
+        `grant_type=authorization_code&code=${code}&redirect_uri=${config.ruName}`,
         {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -88,23 +85,24 @@ class EbayService {
         }
       );
       
-      this.accessToken = response.data.access_token;
+      const accessToken = response.data.access_token;
+      const dbKey = `ebay_access_token_${config.isSandbox ? 'sandbox' : 'prod'}`;
 
-      // Persist the token to the settings table
-      const dbKey = `ebay_access_token_${this.isSandbox ? 'sandbox' : 'prod'}`;
-      db.run(
-        'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?',
-        [dbKey, this.accessToken, this.accessToken],
-        (err) => {
-          if (err) {
-            console.error('[EbayService] Failed to persist eBay access token to database:', err.message);
-          } else {
-            console.log('[EbayService] Successfully persisted eBay access token to database.');
+      return new Promise((resolve, reject) => {
+        db.run(
+          'INSERT INTO settings (user_id, key, value) VALUES (?, ?, ?) ON CONFLICT(user_id, key) DO UPDATE SET value = ?',
+          [userId, dbKey, accessToken, accessToken],
+          (err) => {
+            if (err) {
+              console.error('[EbayService] Failed to persist eBay access token to database:', err.message);
+              reject(err);
+            } else {
+              console.log('[EbayService] Successfully persisted eBay access token to database.');
+              resolve(response.data);
+            }
           }
-        }
-      );
-
-      return response.data;
+        );
+      });
     } catch (error) {
       const errorMsg = error.response?.data || error.message;
       console.error('eBay Token Exchange Error:', errorMsg);
@@ -112,10 +110,9 @@ class EbayService {
     }
   }
 
-  async uploadImageToEPS(localFilePath) {
-    if (!this.accessToken) throw new Error('Not authenticated with eBay');
+  async uploadImageToEPS(localFilePath, config) {
+    if (!config.accessToken) throw new Error('Not authenticated with eBay');
 
-    // Resolve path relative to backend directory
     const resolvedPath = path.isAbsolute(localFilePath)
       ? localFilePath
       : path.resolve(__dirname, '../../', localFilePath);
@@ -125,7 +122,7 @@ class EbayService {
       return null;
     }
 
-    const tradingUrl = this.isSandbox
+    const tradingUrl = config.isSandbox
       ? 'https://api.sandbox.ebay.com/ws/api.dll'
       : 'https://api.ebay.com/ws/api.dll';
 
@@ -147,7 +144,7 @@ class EbayService {
           'X-EBAY-API-COMPATIBILITY-LEVEL': '1235',
           'X-EBAY-API-CALL-NAME': 'UploadSiteHostedPictures',
           'X-EBAY-API-SITEID': '0',
-          'X-EBAY-API-IAF-TOKEN': this.accessToken
+          'X-EBAY-API-IAF-TOKEN': config.accessToken
         }
       });
 
@@ -176,10 +173,9 @@ class EbayService {
     }
   }
 
-  async createInventoryItem(sku, itemData) {
-    if (!this.accessToken) throw new Error('Not authenticated with eBay. Please connect your account first.');
+  async createInventoryItem(sku, itemData, config) {
+    if (!config.accessToken) throw new Error('Not authenticated with eBay. Please connect your account first.');
 
-    // Upload local images to eBay Picture Services (EPS)
     const epsUrls = [];
     if (itemData.images) {
       try {
@@ -187,7 +183,7 @@ class EbayService {
         if (Array.isArray(localPaths)) {
           for (const localPath of localPaths) {
             console.log(`Uploading ${localPath} to eBay Picture Services...`);
-            const epsUrl = await this.uploadImageToEPS(localPath);
+            const epsUrl = await this.uploadImageToEPS(localPath, config);
             if (epsUrl) {
               console.log(`Uploaded successfully! EPS URL: ${epsUrl}`);
               epsUrls.push(epsUrl);
@@ -199,8 +195,7 @@ class EbayService {
       }
     }
 
-    // Dynamically extract required clothing aspects to prevent publish errors
-    let department = 'Men'; // Default fallback
+    let department = 'Men';
     const titleAndCategory = `${itemData.title} ${itemData.category || ''}`.toLowerCase();
     if (titleAndCategory.includes('women')) {
       department = 'Women';
@@ -214,7 +209,7 @@ class EbayService {
       department = 'Baby';
     }
 
-    let type = 'Jeans'; // Default fallback
+    let type = 'Jeans';
     if (titleAndCategory.includes('t-shirt') || titleAndCategory.includes('tee')) {
       type = 'T-Shirt';
     } else if (titleAndCategory.includes('shirt') || titleAndCategory.includes('button')) {
@@ -253,11 +248,9 @@ class EbayService {
     const colorMatch = itemData.title.match(/Blue|Red|Black|White|Green|Orange|Purple|Yellow|Brown|Gray|Pink|Tan|Beige|Cream|Navy|Olive|Maroon|Khaki|Denim/i);
     const color = colorMatch ? colorMatch[0] : 'Multicolor';
 
-    // Extract Style aspect
     let style = 'Basic';
     if (itemData.style_details) {
       const parts = itemData.style_details.split(',').map(s => s.trim()).filter(Boolean);
-      // Try to find a style that doesn't just name the garment category itself
       const genericWords = ['jeans', 'pants', 'shirt', 'clothing', 'women', 'men', 'boy', 'girl', 'unisex', 'kid', 'apparel', 'trousers', 'shorts', 'sweatshirt', 'hoodie', 'jacket', 'coat', 'sweater', 'tee', 't-shirt'];
       const filtered = parts.filter(p => {
         const lower = p.toLowerCase();
@@ -271,7 +264,7 @@ class EbayService {
 
     const body = {
       product: {
-        title: itemData.title.substring(0, 80), // Max 80 chars
+        title: itemData.title.substring(0, 80),
         description: itemData.style_details,
         imageUrls: epsUrls,
         aspects: {
@@ -306,7 +299,6 @@ class EbayService {
       };
     }
 
-    // Parse additional dynamic aspects and UPC from style_details (e.g. "Waist Size: 30, UPC: 12345")
     if (itemData.style_details) {
       const parts = itemData.style_details.split(',').map(s => s.trim()).filter(Boolean);
       parts.forEach(part => {
@@ -319,12 +311,10 @@ class EbayService {
             if (formattedKey.toLowerCase() === 'upc') {
               body.product.upc = [val];
             } else {
-              // Split values by & or 'and' or '/' to support multi-value aspects
               let valArray = [val];
               if (val.includes('&') || val.includes('/') || /\band\b/i.test(val)) {
                 valArray = val.split(/&|\/|\band\b/i).map(v => v.trim()).filter(Boolean);
               }
-              // Map values to standard eBay options where possible
               const mappedArray = valArray.map(v => mapToEbayStandardValue(formattedKey, v));
               body.product.aspects[formattedKey] = mappedArray;
             }
@@ -334,9 +324,9 @@ class EbayService {
     }
 
     try {
-      await axios.put(`${this.baseUrl}/sell/inventory/v1/inventory_item/${sku}`, body, {
+      await axios.put(`${config.baseUrl}/sell/inventory/v1/inventory_item/${sku}`, body, {
         headers: {
-          'Authorization': `Bearer ${this.accessToken}`,
+          'Authorization': `Bearer ${config.accessToken}`,
           'Content-Language': 'en-US',
           'Content-Type': 'application/json'
         }
@@ -349,32 +339,244 @@ class EbayService {
     }
   }
 
-  async getInventoryItems() {
-    console.log(`[EbayService] getInventoryItems starting... Token available: ${!!this.accessToken}`);
-    if (!this.accessToken) {
+  async getFulfillmentPolicyId(config) {
+    try {
+      const response = await axios.get(`${config.baseUrl}/sell/account/v1/fulfillment_policy?marketplace_id=EBAY_US`, {
+        headers: { 'Authorization': `Bearer ${config.accessToken}` }
+      });
+      return response.data.fulfillmentPolicies?.[0]?.fulfillmentPolicyId;
+    } catch (e) {
+      console.error('Fulfillment policy fetch error:', e.response?.data || e.message);
+      return null;
+    }
+  }
+
+  async getReturnPolicyId(config) {
+    try {
+      const response = await axios.get(`${config.baseUrl}/sell/account/v1/return_policy?marketplace_id=EBAY_US`, {
+        headers: { 'Authorization': `Bearer ${config.accessToken}` }
+      });
+      return response.data.returnPolicies?.[0]?.returnPolicyId;
+    } catch (e) {
+      console.error('Return policy fetch error:', e.response?.data || e.message);
+      return null;
+    }
+  }
+
+  async getPaymentPolicyId(config) {
+    try {
+      const response = await axios.get(`${config.baseUrl}/sell/account/v1/payment_policy?marketplace_id=EBAY_US`, {
+        headers: { 'Authorization': `Bearer ${config.accessToken}` }
+      });
+      return response.data.paymentPolicies?.[0]?.paymentPolicyId;
+    } catch (e) {
+      console.error('Payment policy fetch error:', e.response?.data || e.message);
+      return null;
+    }
+  }
+
+  async getSuggestedCategoryId(title, config) {
+    try {
+      const response = await axios.get(`${config.baseUrl}/commerce/taxonomy/v1/category_tree/0/get_category_suggestions?q=${encodeURIComponent(title)}`, {
+        headers: {
+          'Authorization': `Bearer ${config.accessToken}`
+        }
+      });
+      const suggestions = response.data.categorySuggestions;
+      if (suggestions && suggestions.length > 0) {
+        return suggestions[0].category.categoryId;
+      }
+    } catch (e) {
+      console.error('Category suggestion error:', e.response?.data || e.message);
+    }
+    return '11450';
+  }
+
+  async getMerchantLocationKey(config) {
+    try {
+      const response = await axios.get(`${config.baseUrl}/sell/inventory/v1/location`, {
+        headers: { 'Authorization': `Bearer ${config.accessToken}` }
+      });
+      if (response.data.locations && response.data.locations.length > 0) {
+        return response.data.locations[0].merchantLocationKey;
+      }
+    } catch (e) {
+      console.log('Failed to get location, will try to create default-location');
+    }
+    
+    const defaultLocationKey = 'default-location';
+    try {
+      await axios.post(`${config.baseUrl}/sell/inventory/v1/location/${defaultLocationKey}`, {
+        location: {
+          address: {
+            addressLine1: "123 Main St",
+            city: "San Jose",
+            stateOrProvince: "CA",
+            postalCode: "95125",
+            country: "US"
+          }
+        },
+        locationWebUrl: "http://example.com",
+        name: "Main Warehouse",
+        merchantLocationStatus: "ENABLED",
+        locationTypes: ["STORE"]
+      }, {
+        headers: {
+          'Authorization': `Bearer ${config.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      return defaultLocationKey;
+    } catch (error) {
+      console.error('Failed to create location:', error.response?.data || error.message);
+      return defaultLocationKey;
+    }
+  }
+
+  async publishOffer(offerId, config) {
+    if (!config.accessToken) throw new Error('Not authenticated with eBay');
+
+    try {
+      const response = await axios.post(`${config.baseUrl}/sell/inventory/v1/offer/${offerId}/publish`, {}, {
+        headers: {
+          'Authorization': `Bearer ${config.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`[EbayService] publishOffer Error for offer #${offerId}:`, error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  getNextSaturdayISO() {
+    const now = new Date();
+    const day = now.getDay();
+    let diff = 6 - day;
+    if (diff <= 0) {
+      diff += 7;
+    }
+    const nextSaturday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff, 9, 0, 0);
+    return nextSaturday.toISOString();
+  }
+
+  async createDraft(itemData, userId) {
+    const config = await this.loadUserConfig(userId);
+    const sku = `LM-${itemData.inventory_code || Date.now()}`;
+    try {
+      await this.createInventoryItem(sku, itemData, config);
+
+      const [fulfillmentPolicyId, returnPolicyId, paymentPolicyId, locationKey, categoryId] = await Promise.all([
+        this.getFulfillmentPolicyId(config),
+        this.getReturnPolicyId(config),
+        this.getPaymentPolicyId(config),
+        this.getMerchantLocationKey(config),
+        this.getSuggestedCategoryId(itemData.title, config)
+      ]);
+
+      if (!fulfillmentPolicyId || !returnPolicyId || !paymentPolicyId) {
+        throw new Error("Could not fetch active listing policy profiles (shipping, return, or payment) from your eBay account. Please set up default policies in your eBay Seller Hub first.");
+      }
+
+      let priceVal = 19.99;
+      if (itemData.retail_price) {
+        const match = itemData.retail_price.match(/[\d.]+/);
+        if (match) {
+          priceVal = parseFloat(match[0]);
+        }
+      }
+
+      const descHtml = `
+        <div style="font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px;">
+          <h2 style="font-size: 1.25rem; font-weight: bold; border-bottom: 1px solid #eaeaea; padding-bottom: 8px; margin-bottom: 15px; color: #111;">${itemData.title}</h2>
+          <p><strong>MATERIAL:</strong><br/>${itemData.material || 'N/A'}</p>
+          <p><strong>CONDITION:</strong><br/>${itemData.condition || 'N/A'}</p>
+          <p><strong>MEASUREMENTS NOTE:</strong><br/>${itemData.measurements_note || 'N/A'}</p>
+          <p><strong>SHIPPING NOTE:</strong><br/>Items ship next business day.</p>
+          ${itemData.etsy_tags ? `<p><strong>STYLE TAGS / KEYWORDS:</strong><br/>${itemData.etsy_tags}</p>` : ''}
+        </div>
+      `.trim().replace(/\s+/g, ' ');
+
+      const offerBody = {
+        sku: sku,
+        marketplaceId: "EBAY_US",
+        format: "FIXED_PRICE",
+        availableQuantity: 1,
+        categoryId: categoryId,
+        listingDescription: descHtml,
+        pricingSummary: {
+          price: {
+            value: priceVal.toString(),
+            currency: "USD"
+          }
+        },
+        listingPolicies: {
+          fulfillmentPolicyId: fulfillmentPolicyId,
+          returnPolicyId: returnPolicyId,
+          paymentPolicyId: paymentPolicyId
+        },
+        merchantLocationKey: locationKey,
+        listingStartDate: this.getNextSaturdayISO()
+      };
+
+      const offerResponse = await axios.post(`${config.baseUrl}/sell/inventory/v1/offer`, offerBody, {
+        headers: {
+          'Authorization': `Bearer ${config.accessToken}`,
+          'Content-Language': 'en-US',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const offerId = offerResponse.data.offerId;
+      console.log(`[EbayService] Draft Offer #${offerId} created successfully on eBay for SKU ${sku}`);
+
+      console.log(`[EbayService] Publishing scheduled offer #${offerId}...`);
+      let listingId = null;
+      try {
+        const publishResponse = await this.publishOffer(offerId, config);
+        listingId = publishResponse.listingId;
+        console.log(`[EbayService] Scheduled offer #${offerId} published successfully! Listing ID: ${listingId}`);
+      } catch (publishErr) {
+        console.error(`[EbayService] Failed to publish scheduled offer #${offerId}:`, publishErr.message);
+        throw new Error(`Failed to publish scheduled listing: ${publishErr.message}`);
+      }
+
+      return { 
+        status: 'success', 
+        sku: sku, 
+        listingId: listingId, 
+        offerId: offerId 
+      };
+    } catch (error) {
+      console.error(`[EbayService] createDraft Error for SKU ${sku}:`, error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  async getInventoryItems(userId) {
+    const config = await this.loadUserConfig(userId);
+    console.log(`[EbayService] getInventoryItems starting... Token available: ${!!config.accessToken}`);
+    if (!config.accessToken) {
       console.error('[EbayService] getInventoryItems called but accessToken is null!');
       throw new Error('Not authenticated with eBay');
     }
 
-    // 1. Fetch modern SKU-based items
     let modernItems = [];
-    console.log(`[EbayService] Fetching modern items from: ${this.baseUrl}/sell/inventory/v1/inventory_item`);
     try {
-      const response = await axios.get(`${this.baseUrl}/sell/inventory/v1/inventory_item`, {
+      const response = await axios.get(`${config.baseUrl}/sell/inventory/v1/inventory_item`, {
         headers: {
-          'Authorization': `Bearer ${this.accessToken}`,
+          'Authorization': `Bearer ${config.accessToken}`,
           'Content-Language': 'en-US'
         }
       });
       if (response.data && response.data.inventoryItems) {
         modernItems = response.data.inventoryItems;
-        console.log(`[EbayService] Found ${modernItems.length} modern items. Fetching offer details for Item IDs...`);
-        // Fetch listingId for each item in parallel by querying offers
         await Promise.all(modernItems.map(async (item) => {
           try {
-            const offerResponse = await axios.get(`${this.baseUrl}/sell/inventory/v1/offer?sku=${item.sku}`, {
+            const offerResponse = await axios.get(`${config.baseUrl}/sell/inventory/v1/offer?sku=${item.sku}`, {
               headers: {
-                'Authorization': `Bearer ${this.accessToken}`,
+                'Authorization': `Bearer ${config.accessToken}`,
                 'Content-Language': 'en-US'
               }
             });
@@ -382,6 +584,7 @@ class EbayService {
             if (offers && offers.length > 0) {
               const publishedOffer = offers.find(o => o.status === 'PUBLISHED') || offers[0];
               item.listingId = publishedOffer.listingId;
+              item.price = publishedOffer.price;
               
               if (publishedOffer.listingStartDate) {
                 const startTime = new Date(publishedOffer.listingStartDate);
@@ -403,57 +606,81 @@ class EbayService {
             item.status = 'draft';
           }
         }));
-      } else {
-        console.log('[EbayService] Modern inventory response returned no inventoryItems.');
       }
     } catch (error) {
       console.error('[EbayService] Get Modern Inventory Error:', error.response?.data || error.message);
     }
 
-    // 2. Fetch traditional listings
     let traditionalItems = [];
-    console.log('[EbayService] Fetching traditional listings...');
     try {
-      traditionalItems = await this.getTraditionalListings();
-      console.log(`[EbayService] Found ${traditionalItems.length} traditional items.`);
+      traditionalItems = await this.getTraditionalListings(userId, config);
     } catch (error) {
       console.error('[EbayService] Failed to retrieve traditional listings:', error.message);
     }
 
-    // 3. Deduplicate and merge
+    // Merge cached specifics, description, and price for traditional items
+    const cachedItems = await new Promise((resolve) => {
+      db.all("SELECT * FROM ebay_cache WHERE user_id = ?", [userId], (err, rows) => {
+        if (err || !rows) {
+          resolve([]);
+        } else {
+          resolve(rows);
+        }
+      });
+    });
+
+    const cacheMap = new Map();
+    cachedItems.forEach(c => {
+      cacheMap.set(c.listing_id, c);
+    });
+
+    traditionalItems.forEach(item => {
+      if (item.listingId && cacheMap.has(item.listingId)) {
+        const cached = cacheMap.get(item.listingId);
+        try {
+          if (cached.specifics) {
+            item.product.aspects = JSON.parse(cached.specifics);
+          }
+          if (cached.description) {
+            item.product.description = cached.description;
+          }
+          if (cached.price) {
+            item.price = JSON.parse(cached.price);
+          }
+        } catch (e) {
+          console.error('[Cache] Parse error for listing:', item.listingId, e);
+        }
+      }
+    });
+
     const modernListingIds = new Set(
       modernItems.map(item => item.listingId).filter(Boolean)
     );
-    console.log('[EbayService] Modern Listing IDs:', Array.from(modernListingIds));
 
     const uniqueTraditional = traditionalItems.filter(item => {
       if (item.listingId && modernListingIds.has(item.listingId)) {
-        console.log(`[EbayService] Traditional item ID ${item.listingId} skipped (already present in modern list).`);
         return false;
       }
       if (modernItems.some(mi => mi.sku === item.sku)) {
-        console.log(`[EbayService] Traditional item SKU ${item.sku} skipped (already present in modern list).`);
         return false;
       }
       return true;
     });
 
     const combinedItems = [...modernItems, ...uniqueTraditional];
-    console.log(`[EbayService] Merged inventory. Total items: ${combinedItems.length}`);
     return {
       inventoryItems: combinedItems,
       total: combinedItems.length
     };
   }
 
-  async getTraditionalListings() {
-    if (!this.accessToken) throw new Error('Not authenticated with eBay');
+  async getTraditionalListings(userId, config) {
+    if (!config) config = await this.loadUserConfig(userId);
+    if (!config.accessToken) throw new Error('Not authenticated with eBay');
 
-    const tradingUrl = this.isSandbox
+    const tradingUrl = config.isSandbox
       ? 'https://api.sandbox.ebay.com/ws/api.dll'
       : 'https://api.ebay.com/ws/api.dll';
-
-    console.log(`[EbayService] Making GetMyeBaySelling call for active and scheduled items to: ${tradingUrl}`);
 
     const xml = `<?xml version="1.0" encoding="utf-8"?>
 <GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents">
@@ -480,7 +707,7 @@ class EbayService {
           'X-EBAY-API-COMPATIBILITY-LEVEL': '1235',
           'X-EBAY-API-CALL-NAME': 'GetMyeBaySelling',
           'X-EBAY-API-SITEID': '0',
-          'X-EBAY-API-IAF-TOKEN': this.accessToken,
+          'X-EBAY-API-IAF-TOKEN': config.accessToken,
           'Content-Type': 'text/xml'
         }
       });
@@ -492,14 +719,12 @@ class EbayService {
 
       const ackMatch = data.match(/<Ack>(.*?)<\/Ack>/);
       const ack = ackMatch ? ackMatch[1] : '';
-      console.log(`[EbayService] GetMyeBaySelling Ack: ${ack}`);
       if (ack !== 'Success' && ack !== 'Warning') {
         const errorMatch = data.match(/<LongMessage>(.*?)<\/LongMessage>/);
         const errorMsg = errorMatch ? errorMatch[1] : 'Unknown eBay GetMyeBaySelling error';
         throw new Error(errorMsg);
       }
 
-      // Extract ActiveList XML block and ScheduledList XML block separately
       let activeXml = '';
       let scheduledXml = '';
       
@@ -519,10 +744,77 @@ class EbayService {
     }
   }
 
-  async endTraditionalListing(listingId) {
-    if (!this.accessToken) throw new Error('Not authenticated with eBay');
+  async getInventoryItem(sku, userId) {
+    const config = await this.loadUserConfig(userId);
+    if (!config.accessToken) throw new Error('Not authenticated with eBay');
+    try {
+      const response = await axios.get(`${config.baseUrl}/sell/inventory/v1/inventory_item/${sku}`, {
+        headers: {
+          'Authorization': `Bearer ${config.accessToken}`,
+          'Content-Language': 'en-US'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Get Item ${sku} Error:`, error.response?.data || error.message);
+      throw error;
+    }
+  }
 
-    const tradingUrl = this.isSandbox
+  async updateInventoryItem(sku, updateData, userId) {
+    const config = await this.loadUserConfig(userId);
+    if (!config.accessToken) throw new Error('Not authenticated with eBay');
+    try {
+      const current = await this.getInventoryItem(sku, userId);
+      
+      const body = {
+        ...current,
+        product: {
+          ...current.product,
+          ...updateData.product,
+          aspects: {
+            ...current.product?.aspects,
+            ...(updateData.product?.aspects || {})
+          }
+        }
+      };
+
+      await axios.put(`${config.baseUrl}/sell/inventory/v1/inventory_item/${sku}`, body, {
+        headers: {
+          'Authorization': `Bearer ${config.accessToken}`,
+          'Content-Language': 'en-US',
+          'Content-Type': 'application/json'
+        }
+      });
+      return { status: 'success', sku };
+    } catch (error) {
+      console.error(`Update Item ${sku} Error:`, error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  async deleteInventoryItem(sku, userId) {
+    const config = await this.loadUserConfig(userId);
+    if (!config.accessToken) throw new Error('Not authenticated with eBay');
+    try {
+      await axios.delete(`${config.baseUrl}/sell/inventory/v1/inventory_item/${sku}`, {
+        headers: {
+          'Authorization': `Bearer ${config.accessToken}`,
+          'Content-Language': 'en-US'
+        }
+      });
+      return { status: 'success', sku };
+    } catch (error) {
+      console.error(`Delete Item ${sku} Error:`, error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  async endTraditionalListing(listingId, userId) {
+    const config = await this.loadUserConfig(userId);
+    if (!config.accessToken) throw new Error('Not authenticated with eBay');
+
+    const tradingUrl = config.isSandbox
       ? 'https://api.sandbox.ebay.com/ws/api.dll'
       : 'https://api.ebay.com/ws/api.dll';
 
@@ -538,7 +830,7 @@ class EbayService {
           'X-EBAY-API-COMPATIBILITY-LEVEL': '1235',
           'X-EBAY-API-CALL-NAME': 'EndItem',
           'X-EBAY-API-SITEID': '0',
-          'X-EBAY-API-IAF-TOKEN': this.accessToken,
+          'X-EBAY-API-IAF-TOKEN': config.accessToken,
           'Content-Type': 'text/xml'
         }
       });
@@ -563,10 +855,11 @@ class EbayService {
     }
   }
 
-  async bulkReviseTraditionalListings(items) {
-    if (!this.accessToken) throw new Error('Not authenticated with eBay');
+  async bulkReviseTraditionalListings(items, userId) {
+    const config = await this.loadUserConfig(userId);
+    if (!config.accessToken) throw new Error('Not authenticated with eBay');
 
-    const tradingUrl = this.isSandbox
+    const tradingUrl = config.isSandbox
       ? 'https://api.sandbox.ebay.com/ws/api.dll'
       : 'https://api.ebay.com/ws/api.dll';
 
@@ -608,7 +901,7 @@ class EbayService {
             'X-EBAY-API-COMPATIBILITY-LEVEL': '1235',
             'X-EBAY-API-CALL-NAME': 'ReviseItem',
             'X-EBAY-API-SITEID': '0',
-            'X-EBAY-API-IAF-TOKEN': this.accessToken,
+            'X-EBAY-API-IAF-TOKEN': config.accessToken,
             'Content-Type': 'text/xml'
           }
         });
@@ -634,304 +927,15 @@ class EbayService {
     return results;
   }
 
-  async deleteInventoryItem(sku) {
-    if (!this.accessToken) throw new Error('Not authenticated with eBay');
-    try {
-      await axios.delete(`${this.baseUrl}/sell/inventory/v1/inventory_item/${sku}`, {
-        headers: {
-          'Authorization': `Bearer ${this.accessToken}`,
-          'Content-Language': 'en-US'
-        }
-      });
-      return { status: 'success', sku };
-    } catch (error) {
-      console.error(`Delete Item ${sku} Error:`, error.response?.data || error.message);
-      throw error;
-    }
-  }
+  async fetchExternalItemDetails(itemId, userId) {
+    const config = await this.loadUserConfig(userId);
+    if (!config.accessToken) throw new Error('Not authenticated with eBay');
 
-  async getInventoryItem(sku) {
-    if (!this.accessToken) throw new Error('Not authenticated with eBay');
-    try {
-      const response = await axios.get(`${this.baseUrl}/sell/inventory/v1/inventory_item/${sku}`, {
-        headers: {
-          'Authorization': `Bearer ${this.accessToken}`,
-          'Content-Language': 'en-US'
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.error(`Get Item ${sku} Error:`, error.response?.data || error.message);
-      throw error;
-    }
-  }
-
-  async updateInventoryItem(sku, updateData) {
-    if (!this.accessToken) throw new Error('Not authenticated with eBay');
-    try {
-      // First get current item to ensure we have required fields
-      const current = await this.getInventoryItem(sku);
-      
-      const body = {
-        ...current,
-        product: {
-          ...current.product,
-          ...updateData.product,
-          aspects: {
-            ...current.product?.aspects,
-            ...(updateData.product?.aspects || {})
-          }
-        }
-      };
-
-      await axios.put(`${this.baseUrl}/sell/inventory/v1/inventory_item/${sku}`, body, {
-        headers: {
-          'Authorization': `Bearer ${this.accessToken}`,
-          'Content-Language': 'en-US',
-          'Content-Type': 'application/json'
-        }
-      });
-      return { status: 'success', sku };
-    } catch (error) {
-      console.error(`Update Item ${sku} Error:`, error.response?.data || error.message);
-      throw error;
-    }
-  }
-
-  async getFulfillmentPolicyId() {
-    try {
-      const response = await axios.get(`${this.baseUrl}/sell/account/v1/fulfillment_policy?marketplace_id=EBAY_US`, {
-        headers: { 'Authorization': `Bearer ${this.accessToken}` }
-      });
-      return response.data.fulfillmentPolicies?.[0]?.fulfillmentPolicyId;
-    } catch (e) {
-      console.error('Fulfillment policy fetch error:', e.response?.data || e.message);
-      return null;
-    }
-  }
-
-  async getReturnPolicyId() {
-    try {
-      const response = await axios.get(`${this.baseUrl}/sell/account/v1/return_policy?marketplace_id=EBAY_US`, {
-        headers: { 'Authorization': `Bearer ${this.accessToken}` }
-      });
-      return response.data.returnPolicies?.[0]?.returnPolicyId;
-    } catch (e) {
-      console.error('Return policy fetch error:', e.response?.data || e.message);
-      return null;
-    }
-  }
-
-  async getPaymentPolicyId() {
-    try {
-      const response = await axios.get(`${this.baseUrl}/sell/account/v1/payment_policy?marketplace_id=EBAY_US`, {
-        headers: { 'Authorization': `Bearer ${this.accessToken}` }
-      });
-      return response.data.paymentPolicies?.[0]?.paymentPolicyId;
-    } catch (e) {
-      console.error('Payment policy fetch error:', e.response?.data || e.message);
-      return null;
-    }
-  }
-
-  async getSuggestedCategoryId(title) {
-    try {
-      const response = await axios.get(`${this.baseUrl}/commerce/taxonomy/v1/category_tree/0/get_category_suggestions?q=${encodeURIComponent(title)}`, {
-        headers: {
-          'Authorization': `Bearer ${this.accessToken}`
-        }
-      });
-      const suggestions = response.data.categorySuggestions;
-      if (suggestions && suggestions.length > 0) {
-        return suggestions[0].category.categoryId;
-      }
-    } catch (e) {
-      console.error('Category suggestion error:', e.response?.data || e.message);
-    }
-    return '11450'; // Fallback to Clothing, Shoes & Accessories general
-  }
-
-  async getMerchantLocationKey() {
-    try {
-      const response = await axios.get(`${this.baseUrl}/sell/inventory/v1/location`, {
-        headers: { 'Authorization': `Bearer ${this.accessToken}` }
-      });
-      if (response.data.locations && response.data.locations.length > 0) {
-        return response.data.locations[0].merchantLocationKey;
-      }
-    } catch (e) {
-      console.log('Failed to get location, will try to create default-location');
-    }
-    
-    // Create a default location if none exists
-    const defaultLocationKey = 'default-location';
-    try {
-      await axios.post(`${this.baseUrl}/sell/inventory/v1/location/${defaultLocationKey}`, {
-        location: {
-          address: {
-            addressLine1: "123 Main St",
-            city: "San Jose",
-            stateOrProvince: "CA",
-            postalCode: "95125",
-            country: "US"
-          }
-        },
-        locationWebUrl: "http://example.com",
-        name: "Main Warehouse",
-        merchantLocationStatus: "ENABLED",
-        locationTypes: ["STORE"]
-      }, {
-        headers: {
-          'Authorization': `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      return defaultLocationKey;
-    } catch (error) {
-      console.error('Failed to create location:', error.response?.data || error.message);
-      return defaultLocationKey;
-    }
-  }
-
-  async publishOffer(offerId) {
-    if (!this.accessToken) throw new Error('Not authenticated with eBay');
-
-    try {
-      const response = await axios.post(`${this.baseUrl}/sell/inventory/v1/offer/${offerId}/publish`, {}, {
-        headers: {
-          'Authorization': `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      return response.data; // contains { listingId: '...' }
-    } catch (error) {
-      console.error(`[EbayService] publishOffer Error for offer #${offerId}:`, error.response?.data || error.message);
-      throw error;
-    }
-  }
-
-  getNextSaturdayISO() {
-    const now = new Date();
-    const day = now.getDay();
-    let diff = 6 - day;
-    if (diff <= 0) {
-      diff += 7;
-    }
-    // Set scheduled start time to next Saturday morning at 9:00 AM
-    const nextSaturday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff, 9, 0, 0);
-    return nextSaturday.toISOString();
-  }
-
-  async createDraft(itemData) {
-    const sku = `LM-${itemData.inventory_code || Date.now()}`;
-    try {
-      // 1. Create the inventory item (creates EPS images and catalog entry)
-      await this.createInventoryItem(sku, itemData);
-
-      // 2. Resolve necessary details for the offer
-      const [fulfillmentPolicyId, returnPolicyId, paymentPolicyId, locationKey, categoryId] = await Promise.all([
-        this.getFulfillmentPolicyId(),
-        this.getReturnPolicyId(),
-        this.getPaymentPolicyId(),
-        this.getMerchantLocationKey(),
-        this.getSuggestedCategoryId(itemData.title)
-      ]);
-
-      if (!fulfillmentPolicyId || !returnPolicyId || !paymentPolicyId) {
-        throw new Error("Could not fetch active listing policy profiles (shipping, return, or payment) from your eBay account. Please set up default policies in your eBay Seller Hub first.");
-      }
-
-      // Parse retail price
-      let priceVal = 19.99;
-      if (itemData.retail_price) {
-        const match = itemData.retail_price.match(/[\d.]+/);
-        if (match) {
-          priceVal = parseFloat(match[0]);
-        }
-      }
-
-      // 3. Create the Draft Offer
-      const descHtml = `
-        <div style="font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px;">
-          <h2 style="font-size: 1.25rem; font-weight: bold; border-bottom: 1px solid #eaeaea; padding-bottom: 8px; margin-bottom: 15px; color: #111;">${itemData.title}</h2>
-          <p><strong>MATERIAL:</strong><br/>${itemData.material || 'N/A'}</p>
-          <p><strong>CONDITION:</strong><br/>${itemData.condition || 'N/A'}</p>
-          <p><strong>MEASUREMENTS NOTE:</strong><br/>${itemData.measurements_note || 'N/A'}</p>
-          <p><strong>SHIPPING NOTE:</strong><br/>Items ship next business day.</p>
-          ${itemData.etsy_tags ? `<p><strong>STYLE TAGS / KEYWORDS:</strong><br/>${itemData.etsy_tags}</p>` : ''}
-        </div>
-      `.trim().replace(/\s+/g, ' ');
-
-      const offerBody = {
-        sku: sku,
-        marketplaceId: "EBAY_US",
-        format: "FIXED_PRICE",
-        availableQuantity: 1,
-        categoryId: categoryId,
-        listingDescription: descHtml,
-        pricingSummary: {
-          price: {
-            value: priceVal.toString(),
-            currency: "USD"
-          }
-        },
-        listingPolicies: {
-          fulfillmentPolicyId: fulfillmentPolicyId,
-          returnPolicyId: returnPolicyId,
-          paymentPolicyId: paymentPolicyId
-        },
-        merchantLocationKey: locationKey,
-        listingStartDate: this.getNextSaturdayISO() // Schedule for Saturday
-      };
-
-      const offerResponse = await axios.post(`${this.baseUrl}/sell/inventory/v1/offer`, offerBody, {
-        headers: {
-          'Authorization': `Bearer ${this.accessToken}`,
-          'Content-Language': 'en-US',
-          'Content-Type': 'application/json'
-        }
-      });
-
-      const offerId = offerResponse.data.offerId;
-      console.log(`[EbayService] Draft Offer #${offerId} created successfully on eBay for SKU ${sku}`);
-
-      // 4. Publish the Offer so it is scheduled and visible in Seller Hub!
-      console.log(`[EbayService] Publishing scheduled offer #${offerId}...`);
-      let listingId = null;
-      try {
-        const publishResponse = await this.publishOffer(offerId);
-        listingId = publishResponse.listingId;
-        console.log(`[EbayService] Scheduled offer #${offerId} published successfully! Listing ID: ${listingId}`);
-      } catch (publishErr) {
-        console.error(`[EbayService] Failed to publish scheduled offer #${offerId}:`, publishErr.message);
-        throw new Error(`Failed to publish scheduled listing: ${publishErr.message}`);
-      }
-
-      return { 
-        status: 'success', 
-        sku, 
-        offerId, 
-        listingId,
-        message: `Listing successfully scheduled for Saturday at 9:00 AM! (eBay Item ID: ${listingId})` 
-      };
-    } catch (error) {
-      console.error('eBay Create Draft Error:', error.response?.data || error.message);
-      let detailMsg = error.message;
-      if (error.response?.data?.errors) {
-        detailMsg = error.response.data.errors.map(e => e.message).join(', ');
-      }
-      return { status: 'error', message: detailMsg };
-    }
-  }
-
-  async fetchExternalItemDetails(itemId) {
-    if (!this.accessToken) throw new Error('Not authenticated with eBay. Please connect your account first.');
-
-    const tradingUrl = this.isSandbox
+    const tradingUrl = config.isSandbox
       ? 'https://api.sandbox.ebay.com/ws/api.dll'
       : 'https://api.ebay.com/ws/api.dll';
 
-    console.log(`[EbayService] Making GetItem call for ItemID ${itemId} to: ${tradingUrl}`);
+    console.log(`[EbayService] Making GetItem call for ItemID ${itemId}...`);
 
     const xml = `<?xml version="1.0" encoding="utf-8"?>
 <GetItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
@@ -945,7 +949,7 @@ class EbayService {
           'X-EBAY-API-COMPATIBILITY-LEVEL': '1235',
           'X-EBAY-API-CALL-NAME': 'GetItem',
           'X-EBAY-API-SITEID': '0',
-          'X-EBAY-API-IAF-TOKEN': this.accessToken,
+          'X-EBAY-API-IAF-TOKEN': config.accessToken,
           'Content-Type': 'text/xml'
         }
       });
@@ -963,17 +967,42 @@ class EbayService {
         throw new Error(errorMsg);
       }
 
-      // Extract title
       const titleMatch = data.match(/<Title>(.*?)<\/Title>/);
       const title = titleMatch ? decodeXmlEntities(titleMatch[1].trim()) : '';
 
-      // Extract Description
       const descMatch = data.match(/<Description>([\s\S]*?)<\/Description>/);
       const descriptionHtml = descMatch ? descMatch[1].trim() : '';
-      // Strip html tags to get plain text for description
       const description = descriptionHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
-      // Extract Item Specifics
+      // Parse Price
+      let priceVal = '0.0';
+      let currency = 'USD';
+      
+      const buyItNowMatch = data.match(/<BuyItNowPrice(?:\s+currencyID="([^"]+)")?>([^<]+)<\/BuyItNowPrice>/);
+      const currentPriceMatch = data.match(/<CurrentPrice(?:\s+currencyID="([^"]+)")?>([^<]+)<\/CurrentPrice>/);
+      const startPriceMatch = data.match(/<StartPrice(?:\s+currencyID="([^"]+)")?>([^<]+)<\/StartPrice>/);
+
+      const binVal = buyItNowMatch ? parseFloat(buyItNowMatch[2].trim()) : 0;
+      const curVal = currentPriceMatch ? parseFloat(currentPriceMatch[2].trim()) : 0;
+      const stVal = startPriceMatch ? parseFloat(startPriceMatch[2].trim()) : 0;
+
+      if (binVal > 0) {
+        priceVal = String(binVal);
+        currency = buyItNowMatch[1] || 'USD';
+      } else if (curVal > 0) {
+        priceVal = String(curVal);
+        currency = currentPriceMatch[1] || 'USD';
+      } else if (stVal > 0) {
+        priceVal = String(stVal);
+        currency = startPriceMatch[1] || 'USD';
+      } else if (buyItNowMatch) {
+        priceVal = buyItNowMatch[2].trim();
+        currency = buyItNowMatch[1] || 'USD';
+      } else if (currentPriceMatch) {
+        priceVal = currentPriceMatch[2].trim();
+        currency = currentPriceMatch[1] || 'USD';
+      }
+
       const specifics = {};
       const specificsBlockMatch = data.match(/<ItemSpecifics>([\s\S]*?)<\/ItemSpecifics>/);
       if (specificsBlockMatch) {
@@ -998,7 +1027,8 @@ class EbayService {
       return {
         title,
         description,
-        specifics
+        specifics,
+        price: { value: priceVal, currency }
       };
     } catch (error) {
       console.error(`[EbayService] GetItem Error for ItemID ${itemId}:`, error.response?.data || error.message);
@@ -1015,7 +1045,6 @@ function resolveEbayMaterials(materialStr) {
   const materials = new Set();
   const lower = materialStr.toLowerCase();
 
-  // Find individual standard fibers
   const fiberMappings = [
     { pattern: /cotton/i, name: 'Cotton' },
     { pattern: /polyester/i, name: 'Polyester' },
@@ -1037,7 +1066,6 @@ function resolveEbayMaterials(materialStr) {
     }
   });
 
-  // Determine blends
   if (foundFibers.length > 1) {
     if (foundFibers.includes('Cotton')) {
       materials.add('Cotton Blend');
@@ -1050,9 +1078,7 @@ function resolveEbayMaterials(materialStr) {
     }
   }
 
-  // Always append the original detailed percentage string as a custom value
   materials.add(materialStr);
-
   return Array.from(materials);
 }
 
@@ -1106,6 +1132,35 @@ function parseItemsFromXml(xml, status) {
     const galleryUrlMatch = block.match(/<GalleryURL>(.*?)<\/GalleryURL>/);
     const pictureUrlMatches = block.match(/<PictureURL>(.*?)<\/PictureURL>/g) || [];
     
+    // Parse Price
+    let priceVal = '0.0';
+    let currency = 'USD';
+    
+    const buyItNowMatch = block.match(/<BuyItNowPrice(?:\s+currencyID="([^"]+)")?>([^<]+)<\/BuyItNowPrice>/);
+    const currentPriceMatch = block.match(/<CurrentPrice(?:\s+currencyID="([^"]+)")?>([^<]+)<\/CurrentPrice>/);
+    const startPriceMatch = block.match(/<StartPrice(?:\s+currencyID="([^"]+)")?>([^<]+)<\/StartPrice>/);
+
+    const binVal = buyItNowMatch ? parseFloat(buyItNowMatch[2].trim()) : 0;
+    const curVal = currentPriceMatch ? parseFloat(currentPriceMatch[2].trim()) : 0;
+    const stVal = startPriceMatch ? parseFloat(startPriceMatch[2].trim()) : 0;
+
+    if (binVal > 0) {
+      priceVal = String(binVal);
+      currency = buyItNowMatch[1] || 'USD';
+    } else if (curVal > 0) {
+      priceVal = String(curVal);
+      currency = currentPriceMatch[1] || 'USD';
+    } else if (stVal > 0) {
+      priceVal = String(stVal);
+      currency = startPriceMatch[1] || 'USD';
+    } else if (buyItNowMatch) {
+      priceVal = buyItNowMatch[2].trim();
+      currency = buyItNowMatch[1] || 'USD';
+    } else if (currentPriceMatch) {
+      priceVal = currentPriceMatch[2].trim();
+      currency = currentPriceMatch[1] || 'USD';
+    }
+
     const imageUrls = [];
     if (galleryUrlMatch && galleryUrlMatch[1]) {
       imageUrls.push(galleryUrlMatch[1].trim());
@@ -1140,6 +1195,10 @@ function parseItemsFromXml(xml, status) {
         title: title,
         imageUrls: imageUrls
       },
+      price: {
+        value: priceVal,
+        currency: currency
+      },
       condition: "USED_EXCELLENT",
       availability: {
         shipToLocationAvailability: {
@@ -1170,4 +1229,3 @@ function escapeXml(unsafe) {
 }
 
 module.exports = new EbayService();
-

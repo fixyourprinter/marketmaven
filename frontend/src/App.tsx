@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import axios from 'axios';
-import { LayoutDashboard, Database, Settings as SettingsIcon, ChevronRight, X, Sun, Moon, Menu, Camera, MessageSquare, History, CheckCircle2 } from 'lucide-react';
+import { LayoutDashboard, Database, Settings as SettingsIcon, ChevronRight, X, Sun, Moon, Menu, Camera, MessageSquare, History, CheckCircle2, LogOut, User as UserIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Dashboard from './pages/Dashboard';
 import EbayInventory from './pages/EbayInventory';
-
 import MobileCapture from './pages/MobileCapture';
 
 const API_BASE = '/api';
@@ -14,9 +13,11 @@ interface SidebarProps {
   onOpenSettings: () => void;
   onOpenFeedback: () => void;
   onOpenVersionNotes: () => void;
+  user: any;
+  onLogout: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenFeedback, onOpenVersionNotes }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenFeedback, onOpenVersionNotes, user, onLogout }) => {
   const location = useLocation();
   
   const navItems = [
@@ -35,10 +36,30 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenFeedback, onOpe
 
   return (
     <aside className="w-72 h-screen fixed left-0 top-0 bg-slate-950 border-r border-slate-900 flex flex-col p-6 z-50">
-      <div className="flex flex-col mb-10 px-2">
+      <div className="flex flex-col mb-8 px-2">
         <span className="font-serif font-black text-2.5xl tracking-tight text-white leading-none">Market<span className="text-blue-500 font-sans font-light">Maven</span></span>
         <span className="text-[9px] uppercase tracking-widest text-slate-500 font-bold mt-1">smart resell assistant</span>
       </div>
+
+      {/* User Info Card */}
+      {user && (
+        <div className="mb-6 px-4 py-3 bg-white/5 border border-white/5 rounded-xl flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+            <UserIcon size={16} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold text-slate-200 truncate">{user.username}</p>
+            <p className="text-[9px] text-slate-500 font-black uppercase tracking-wider">{user.role}</p>
+          </div>
+          <button 
+            onClick={onLogout}
+            className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
+            title="Log out"
+          >
+            <LogOut size={15} />
+          </button>
+        </div>
+      )}
 
       <nav className="flex-1 space-y-2">
         {navItems.map((item) => (
@@ -92,18 +113,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenFeedback, onOpe
   );
 };
 
-function AppContent({ 
-  onOpenSettings, 
-  isSettingsOpen, 
-  setIsSettingsOpen, 
-  theme, 
-  setTheme, 
-  themePreset,
-  setThemePreset,
-  ebayEnv, 
-  setEbayEnv, 
-  handleSaveSettings 
-}: {
+interface AppContentProps {
   onOpenSettings: () => void;
   isSettingsOpen: boolean;
   setIsSettingsOpen: (open: boolean) => void;
@@ -114,11 +124,27 @@ function AppContent({
   ebayEnv: 'sandbox' | 'production';
   setEbayEnv: (env: 'sandbox' | 'production') => void;
   handleSaveSettings: (t: 'dark' | 'light', env: 'sandbox' | 'production', preset: 'tech' | 'botanical' | 'aurora') => void;
-}) {
+  user: any;
+  onLogout: () => void;
+}
+
+function AppContent({ 
+  onOpenSettings, 
+  isSettingsOpen, 
+  setIsSettingsOpen, 
+  theme, 
+  setTheme, 
+  themePreset,
+  setThemePreset,
+  ebayEnv, 
+  setEbayEnv, 
+  handleSaveSettings,
+  user,
+  onLogout
+}: AppContentProps) {
   const location = useLocation();
   const isMobileView = location.pathname.startsWith('/mobile');
 
-  // Mobile Screen detection for responsive navigation
   const [isMobileScreen, setIsMobileScreen] = useState(window.innerWidth < 1024);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -164,6 +190,8 @@ function AppContent({
           onOpenSettings={onOpenSettings} 
           onOpenFeedback={() => setIsFeedbackOpen(true)}
           onOpenVersionNotes={() => setIsVersionNotesOpen(true)}
+          user={user}
+          onLogout={onLogout}
         />
       )}
 
@@ -175,12 +203,17 @@ function AppContent({
               <span className="font-serif font-black text-xl tracking-tight text-white leading-none">Market<span className="text-blue-500 font-sans font-light">Maven</span></span>
               <span className="text-[8px] uppercase tracking-widest text-slate-500 font-bold mt-0.5">smart resell assistant</span>
             </div>
-            <button 
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
-              className="p-2 text-slate-400 hover:text-white hover:bg-slate-900 rounded-xl transition-colors cursor-pointer"
-            >
-              {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
-            </button>
+            <div className="flex items-center gap-3">
+              {user && (
+                <span className="text-xs font-mono font-bold text-slate-400 bg-slate-900 px-2.5 py-1 rounded border border-slate-800">{user.username}</span>
+              )}
+              <button 
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+                className="p-2 text-slate-400 hover:text-white hover:bg-slate-900 rounded-xl transition-colors cursor-pointer"
+              >
+                {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+              </button>
+            </div>
           </header>
 
           {/* Menu Drawer Overlay */}
@@ -241,6 +274,13 @@ function AppContent({
                     <SettingsIcon size={18} />
                     Settings
                   </button>
+                  <button 
+                    onClick={() => { setIsMobileMenuOpen(false); onLogout(); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-all cursor-pointer font-bold border border-red-500/20 text-xs justify-center"
+                  >
+                    <LogOut size={16} />
+                    Logout
+                  </button>
                 </div>
               </motion.div>
             )}
@@ -270,6 +310,7 @@ function AppContent({
               />
             } 
           />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
 
@@ -277,13 +318,11 @@ function AppContent({
       <AnimatePresence>
         {isSettingsOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-            {/* Backdrop */}
             <div 
               className="absolute inset-0 bg-black/80 backdrop-blur-sm"
               onClick={() => setIsSettingsOpen(false)}
             />
             
-            {/* Modal Container */}
             <div className="relative w-full max-w-md bg-slate-950 border border-slate-900 rounded-2xl shadow-2xl overflow-hidden glass p-6">
               <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-900 flex-shrink-0">
                 <h3 className="text-xl font-bold flex items-center gap-2">
@@ -634,10 +673,76 @@ function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [themePreset, setThemePreset] = useState<'tech' | 'botanical' | 'aurora'>('tech');
   const [ebayEnv, setEbayEnv] = useState<'sandbox' | 'production'>('sandbox');
-  const [loadingSettings, setLoadingSettings] = useState(true);
+  
+  // Auth state
+  const [token, setToken] = useState<string | null>(localStorage.getItem('auth_token'));
+  const [user, setUser] = useState<any>(null);
+  const [isSetupRequired, setIsSetupRequired] = useState<boolean | null>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  
+  // Form state
+  const [usernameInput, setUsernameInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [authActionLoading, setAuthActionLoading] = useState(false);
 
-  // Fetch settings on mount
+  // Sync token with localstorage and axios defaults
   useEffect(() => {
+    if (token) {
+      localStorage.setItem('auth_token', token);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      localStorage.removeItem('auth_token');
+      delete axios.defaults.headers.common['Authorization'];
+    }
+  }, [token]);
+
+  // Setup Axios global response interceptor for 401s
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      response => response,
+      error => {
+        if (error.response && error.response.status === 401) {
+          setToken(null);
+          setUser(null);
+        }
+        return Promise.reject(error);
+      }
+    );
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+    };
+  }, []);
+
+  // Check setup and load user profile on mount
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        const setupRes = await axios.get(`${API_BASE}/auth/setup-required`);
+        const setupReq = setupRes.data.setupRequired;
+        setIsSetupRequired(setupReq);
+
+        if (!setupReq && token) {
+          try {
+            const meRes = await axios.get(`${API_BASE}/auth/me`);
+            setUser(meRes.data.user);
+          } catch (meErr) {
+            // Token is invalid/expired
+            setToken(null);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to check auth status:', err);
+      } finally {
+        setLoadingAuth(false);
+      }
+    };
+    checkAuthStatus();
+  }, [token]);
+
+  // Fetch settings once user is logged in
+  useEffect(() => {
+    if (!user) return;
     const loadSettings = async () => {
       try {
         const response = await axios.get(`${API_BASE}/settings`);
@@ -649,29 +754,29 @@ function App() {
           setThemePreset(loadedPreset as 'tech' | 'botanical' | 'aurora');
           setEbayEnv(loadedEnv);
           
-          // Apply theme class
-          if (loadedTheme === 'light') {
-            document.documentElement.classList.add('light');
-          } else {
-            document.documentElement.classList.remove('light');
-          }
-
-          // Apply theme preset class
-          document.documentElement.classList.remove('theme-botanical', 'theme-aurora');
-          if (loadedPreset === 'botanical') {
-            document.documentElement.classList.add('theme-botanical');
-          } else if (loadedPreset === 'aurora') {
-            document.documentElement.classList.add('theme-aurora');
-          }
+          applyThemeStyles(loadedTheme, loadedPreset);
         }
       } catch (error) {
         console.error('Failed to load settings from server:', error);
-      } finally {
-        setLoadingSettings(false);
       }
     };
     loadSettings();
-  }, []);
+  }, [user]);
+
+  const applyThemeStyles = (t: string, p: string) => {
+    if (t === 'light') {
+      document.documentElement.classList.add('light');
+    } else {
+      document.documentElement.classList.remove('light');
+    }
+
+    document.documentElement.classList.remove('theme-botanical', 'theme-aurora');
+    if (p === 'botanical') {
+      document.documentElement.classList.add('theme-botanical');
+    } else if (p === 'aurora') {
+      document.documentElement.classList.add('theme-aurora');
+    }
+  };
 
   const handleSaveSettings = async (
     updatedTheme: 'dark' | 'light', 
@@ -689,18 +794,7 @@ function App() {
       setEbayEnv(updatedEnv);
       setThemePreset(updatedPreset);
 
-      if (updatedTheme === 'light') {
-        document.documentElement.classList.add('light');
-      } else {
-        document.documentElement.classList.remove('light');
-      }
-
-      document.documentElement.classList.remove('theme-botanical', 'theme-aurora');
-      if (updatedPreset === 'botanical') {
-        document.documentElement.classList.add('theme-botanical');
-      } else if (updatedPreset === 'aurora') {
-        document.documentElement.classList.add('theme-aurora');
-      }
+      applyThemeStyles(updatedTheme, updatedPreset);
 
       alert('Settings updated successfully!');
       setIsSettingsOpen(false);
@@ -709,8 +803,128 @@ function App() {
     }
   };
 
-  if (loadingSettings) {
-    return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-500">Loading settings...</div>;
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!usernameInput || !passwordInput) {
+      setAuthError('Please fill in all fields');
+      return;
+    }
+
+    setAuthError(null);
+    setAuthActionLoading(true);
+
+    try {
+      if (isSetupRequired) {
+        // Register the first Admin user
+        const res = await axios.post(`${API_BASE}/auth/register`, {
+          username: usernameInput,
+          password: passwordInput
+        });
+        setToken(res.data.token);
+        setUser(res.data.user);
+        setIsSetupRequired(false);
+      } else {
+        // Standard login
+        const res = await axios.post(`${API_BASE}/auth/login`, {
+          username: usernameInput,
+          password: passwordInput
+        });
+        setToken(res.data.token);
+        setUser(res.data.user);
+      }
+      setUsernameInput('');
+      setPasswordInput('');
+    } catch (err: any) {
+      setAuthError(err.response?.data?.error || 'Authentication failed. Please check credentials.');
+    } finally {
+      setAuthActionLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setToken(null);
+    setUser(null);
+    // Reset theme to default dark-mode tech
+    applyThemeStyles('dark', 'tech');
+  };
+
+  if (loadingAuth) {
+    return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-500">Initializing authentication...</div>;
+  }
+
+  // If not logged in, render the login/setup wrapper
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 relative overflow-hidden text-slate-200">
+        {/* Background aurora glows */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/10 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-purple-500/10 blur-[120px] pointer-events-none" />
+
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-md bg-slate-900/40 border border-white/5 rounded-2xl p-8 backdrop-blur-xl relative z-10 shadow-2xl"
+        >
+          <div className="flex flex-col items-center mb-8">
+            <span className="font-serif font-black text-3.5xl tracking-tight text-white leading-none">Market<span className="text-blue-500 font-sans font-light">Maven</span></span>
+            <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mt-2">smart resell assistant</span>
+          </div>
+
+          <div className="mb-6 text-center">
+            <h2 className="text-xl font-bold text-white mb-2">
+              {isSetupRequired ? 'Create Admin Account' : 'Welcome Back'}
+            </h2>
+            <p className="text-xs text-slate-400">
+              {isSetupRequired 
+                ? 'Create the first administrator user to set up your resell inventory.' 
+                : 'Sign in to access your listings, AI analysis, and eBay integration.'}
+            </p>
+          </div>
+
+          <form onSubmit={handleAuthSubmit} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Username</label>
+              <input 
+                type="text" 
+                value={usernameInput}
+                onChange={(e) => setUsernameInput(e.target.value)}
+                placeholder="e.g. admin" 
+                className="w-full bg-slate-950 border border-slate-900 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all text-slate-200"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Password</label>
+              <input 
+                type="password" 
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                placeholder="••••••••" 
+                className="w-full bg-slate-950 border border-slate-900 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all text-slate-200"
+              />
+            </div>
+
+            {authError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold rounded-xl text-center">
+                {authError}
+              </div>
+            )}
+
+            <button 
+              type="submit" 
+              disabled={authActionLoading}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 text-sm cursor-pointer mt-6"
+            >
+              {authActionLoading ? (
+                <span>Loading...</span>
+              ) : (
+                <span>{isSetupRequired ? 'Create & Get Started' : 'Sign In'}</span>
+              )}
+            </button>
+          </form>
+        </motion.div>
+      </div>
+    );
   }
 
   return (
@@ -726,6 +940,8 @@ function App() {
         ebayEnv={ebayEnv}
         setEbayEnv={setEbayEnv}
         handleSaveSettings={handleSaveSettings}
+        user={user}
+        onLogout={handleLogout}
       />
     </Router>
   );
