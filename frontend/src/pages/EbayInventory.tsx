@@ -72,6 +72,9 @@ const EbayInventory: React.FC = () => {
   const [bulkActionTab, setBulkActionTab] = useState<'manual' | 'ai'>('manual');
   const [bulkField, setBulkField] = useState('Country/Region of Manufacture');
   const [bulkValue, setBulkValue] = useState('');
+  const [bulkCustomCountry, setBulkCustomCountry] = useState(false);
+  const [bulkCustomSize, setBulkCustomSize] = useState(false);
+  const [bulkCustomRise, setBulkCustomRise] = useState(false);
   const [isDiagnosing, setIsDiagnosing] = useState(false);
   const [diagnosedItems, setDiagnosedItems] = useState<any[]>([]);
   const [bulkProgress, setBulkProgress] = useState<string | null>(null);
@@ -256,6 +259,7 @@ const EbayInventory: React.FC = () => {
         setBulkProgress(`[${count}/${selectedItemsList.length}] Running AI Diagnosis on "${titleSnippet}"`);
         
         let cleanedSpecs: Record<string, string> = {};
+        let errorMsg: string | null = null;
         try {
           const extractRes = await axios.post('/api/ebay/inventory/bulk-repair-extract', { 
             items: [{
@@ -266,15 +270,19 @@ const EbayInventory: React.FC = () => {
           });
           
           const match = extractRes.data.results?.[0];
-          const extractedSpecs = match?.status === 'success' ? match.specifics : {};
-          
-          if (extractedSpecs) {
-            for (const [k, v] of Object.entries(extractedSpecs)) {
-              cleanedSpecs[k] = v === null ? '' : String(v);
+          if (match?.status === 'success') {
+            const extractedSpecs = match.specifics;
+            if (extractedSpecs) {
+              for (const [k, v] of Object.entries(extractedSpecs)) {
+                cleanedSpecs[k] = v === null ? '' : String(v);
+              }
             }
+          } else {
+            errorMsg = match?.error || 'AI extraction failed';
           }
-        } catch (aiErr) {
-          console.error(`AI Extraction failed for item ${item.sku}`);
+        } catch (aiErr: any) {
+          errorMsg = aiErr.response?.data?.error || aiErr.message || 'AI extraction failed';
+          console.error(`AI Extraction failed for item ${item.sku}`, aiErr);
         }
 
         diagnosed.push({
@@ -283,7 +291,8 @@ const EbayInventory: React.FC = () => {
           title: item.product.title,
           description: description,
           originalSpecifics,
-          specifics: cleanedSpecs
+          specifics: cleanedSpecs,
+          error: errorMsg
         });
       }
 
@@ -748,13 +757,19 @@ const EbayInventory: React.FC = () => {
 
                 {!bulkProgress && bulkActionTab === 'manual' && (
                   <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-2 gap-6 text-left">
                       <div>
                         <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2">Aspect / Field</label>
                         <select
                           className="w-full bg-[#151a18] border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
                           value={bulkField}
-                          onChange={(e) => setBulkField(e.target.value)}
+                          onChange={(e) => {
+                            setBulkField(e.target.value);
+                            setBulkValue('');
+                            setBulkCustomCountry(false);
+                            setBulkCustomSize(false);
+                            setBulkCustomRise(false);
+                          }}
                         >
                           <option value="Country/Region of Manufacture">Country of Origin</option>
                           <option value="Brand">Brand</option>
@@ -773,13 +788,83 @@ const EbayInventory: React.FC = () => {
                         </select>
                       </div>
                       <div>
-                        <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2">New Value</label>
-                        <input
-                          className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 text-slate-200 font-sans"
-                          placeholder="Enter value to write to all..."
-                          value={bulkValue}
-                          onChange={(e) => setBulkValue(e.target.value)}
-                        />
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block">New Value</label>
+                          {bulkField === 'Country/Region of Manufacture' && (
+                            <button 
+                              type="button"
+                              onClick={() => setBulkCustomCountry(!bulkCustomCountry)}
+                              className="text-[10px] text-blue-400 hover:text-white font-semibold transition-colors cursor-pointer"
+                            >
+                              {bulkCustomCountry ? "Choose from List" : "Type manually"}
+                            </button>
+                          )}
+                          {bulkField === 'Size' && (
+                            <button 
+                              type="button"
+                              onClick={() => setBulkCustomSize(!bulkCustomSize)}
+                              className="text-[10px] text-blue-400 hover:text-white font-semibold transition-colors cursor-pointer"
+                            >
+                              {bulkCustomSize ? "Choose from List" : "Type manually"}
+                            </button>
+                          )}
+                          {bulkField === 'Rise' && (
+                            <button 
+                              type="button"
+                              onClick={() => setBulkCustomRise(!bulkCustomRise)}
+                              className="text-[10px] text-blue-400 hover:text-white font-semibold transition-colors cursor-pointer"
+                            >
+                              {bulkCustomRise ? "Choose from List" : "Type manually"}
+                            </button>
+                          )}
+                        </div>
+                        
+                        {bulkField === 'Country/Region of Manufacture' && !bulkCustomCountry ? (
+                          <select
+                            className="w-full bg-[#151a18] border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                            value={bulkValue}
+                            onChange={(e) => setBulkValue(e.target.value)}
+                          >
+                            <option value="">-- Select Country --</option>
+                            {COMMON_COUNTRIES.map(c => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
+                        ) : bulkField === 'Size' && !bulkCustomSize ? (
+                          <select
+                            className="w-full bg-[#151a18] border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                            value={bulkValue}
+                            onChange={(e) => setBulkValue(e.target.value)}
+                          >
+                            <option value="">-- Select Size --</option>
+                            {COMMON_SIZES.map(s => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
+                          </select>
+                        ) : bulkField === 'Rise' && !bulkCustomRise ? (
+                          <select
+                            className="w-full bg-[#151a18] border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                            value={bulkValue}
+                            onChange={(e) => setBulkValue(e.target.value)}
+                          >
+                            <option value="">-- Select Rise --</option>
+                            <option value="Mid (8.5-10.5 in)">Mid (8.5-10.5 in)</option>
+                            <option value="Low (6.5-8.5 in)">Low (6.5-8.5 in)</option>
+                            <option value="High (Greater than 10.5 in)">High (Greater than 10.5 in)</option>
+                            <option value="Ultra Low (Less than 6.5 in)">Ultra Low (Less than 6.5 in)</option>
+                          </select>
+                        ) : (
+                          <input
+                            className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 text-slate-200 font-sans"
+                            placeholder={
+                              bulkField === 'Quantity' 
+                                ? "Enter quantity (e.g. 1)..." 
+                                : `Enter value for ${bulkField}...`
+                            }
+                            value={bulkValue}
+                            onChange={(e) => setBulkValue(e.target.value)}
+                          />
+                        )}
                       </div>
                     </div>
                     <div className="p-4 bg-slate-900/40 border border-white/5 rounded-xl text-xs text-slate-400">
@@ -825,6 +910,12 @@ const EbayInventory: React.FC = () => {
                             <p className="text-xs font-bold text-blue-400 mb-1">SKU: {item.sku} {item.listingId ? `(ID: ${item.listingId})` : ''}</p>
                             <p className="text-sm font-semibold text-slate-200 uppercase tracking-tight italic font-serif leading-tight">{item.title}</p>
                           </div>
+                          
+                          {item.error && (
+                            <div className="bg-[#B9735D]/10 border border-[#B9735D]/20 text-[#B9735D] p-3 rounded-lg text-xs font-semibold leading-relaxed">
+                              ⚠️ AI Diagnostic Error: {item.error}
+                            </div>
+                          )}
                           
                           <div className="grid grid-cols-4 gap-4">
                             {/* Brand */}
