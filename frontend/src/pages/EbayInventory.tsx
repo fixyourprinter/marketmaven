@@ -285,6 +285,7 @@ const EbayInventory: React.FC = () => {
           console.error(`AI Extraction failed for item ${item.sku}`, aiErr);
         }
 
+        const countryVal = cleanedSpecs['Country/Region of Manufacture'] || '';
         diagnosed.push({
           sku: item.sku,
           listingId: item.listingId,
@@ -292,7 +293,8 @@ const EbayInventory: React.FC = () => {
           description: description,
           originalSpecifics,
           specifics: cleanedSpecs,
-          error: errorMsg
+          error: errorMsg,
+          customCountry: countryVal !== '' && !COMMON_COUNTRIES.includes(countryVal)
         });
       }
 
@@ -946,16 +948,52 @@ const EbayInventory: React.FC = () => {
                             </div>
                             {/* Country of Origin */}
                             <div>
-                              <label className="text-[9px] uppercase tracking-widest text-slate-500 font-bold block mb-1">Origin</label>
-                              <input 
-                                className="w-full bg-white/5 border border-white/10 rounded p-2 text-xs text-slate-200 font-sans"
-                                value={item.specifics['Country/Region of Manufacture'] || ''}
-                                onChange={(e) => {
-                                  const updated = [...diagnosedItems];
-                                  updated[idx].specifics['Country/Region of Manufacture'] = e.target.value;
-                                  setDiagnosedItems(updated);
-                                }}
-                              />
+                              <div className="flex justify-between items-center mb-1">
+                                <label className="text-[9px] uppercase tracking-widest text-slate-500 font-bold block">Origin</label>
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = [...diagnosedItems];
+                                    updated[idx].customCountry = !updated[idx].customCountry;
+                                    setDiagnosedItems(updated);
+                                  }}
+                                  className="text-[9px] text-blue-400 hover:text-white font-semibold transition-colors cursor-pointer"
+                                >
+                                  {item.customCountry ? "List" : "Type"}
+                                </button>
+                              </div>
+                              {item.customCountry ? (
+                                <input 
+                                  className="w-full bg-white/5 border border-white/10 rounded p-2 text-xs text-slate-200 font-sans"
+                                  value={item.specifics['Country/Region of Manufacture'] || ''}
+                                  onChange={(e) => {
+                                    const updated = [...diagnosedItems];
+                                    updated[idx].specifics['Country/Region of Manufacture'] = e.target.value;
+                                    setDiagnosedItems(updated);
+                                  }}
+                                />
+                              ) : (
+                                <select
+                                  className="w-full bg-[#151a18] border border-white/10 rounded p-2 text-xs text-slate-200 font-sans"
+                                  value={item.specifics['Country/Region of Manufacture'] || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    const updated = [...diagnosedItems];
+                                    if (val === 'other') {
+                                      updated[idx].customCountry = true;
+                                    } else {
+                                      updated[idx].specifics['Country/Region of Manufacture'] = val;
+                                    }
+                                    setDiagnosedItems(updated);
+                                  }}
+                                >
+                                  <option value="">-- Select --</option>
+                                  {COMMON_COUNTRIES.map(c => (
+                                    <option key={c} value={c}>{c}</option>
+                                  ))}
+                                  <option value="other">Other (Type)...</option>
+                                </select>
+                              )}
                             </div>
                             {/* Rise */}
                             <div>
