@@ -282,7 +282,11 @@ class EbayService {
           Department: [department],
           Type: [type],
           "Size Type": [sizeType],
-          Style: [style]
+          Style: [style],
+          Vintage: ['No'],
+          Handmade: ['No'],
+          Personalize: ['No'],
+          "Garment Care": ['Machine Washable']
         }
       },
       condition: "USED_EXCELLENT",

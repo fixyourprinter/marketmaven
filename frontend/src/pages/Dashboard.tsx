@@ -56,20 +56,20 @@ const Dashboard: React.FC = () => {
 
   // Progressive Photo States
   const [step1Images, setStep1Images] = useState<{
+    cover: File | null;
     materialTag: File | null;
     sizeTag: File | null;
-    measurements: File | null;
   }>({
+    cover: null,
     materialTag: null,
-    sizeTag: null,
-    measurements: null
+    sizeTag: null
   });
   const [additionalImages, setAdditionalImages] = useState<File[]>([]);
   const [step1Status, setStep1Status] = useState<'idle' | 'uploading' | 'processing' | 'success' | 'error'>('idle');
   const [step2Status, setStep2Status] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [draftId, setDraftId] = useState<number | null>(null);
   const [dragActive, setDragActive] = useState(false);
-  const [draggedOverSlot, setDraggedOverSlot] = useState<'materialTag' | 'sizeTag' | 'measurements' | null>(null);
+  const [draggedOverSlot, setDraggedOverSlot] = useState<'cover' | 'materialTag' | 'sizeTag' | null>(null);
   const [listingIds, setListingIds] = useState<Set<number>>(new Set());
 
   // Visual/UX states
@@ -77,9 +77,9 @@ const Dashboard: React.FC = () => {
   const [statusMessageIndex, setStatusMessageIndex] = useState(0);
 
   // File Input Refs
+  const coverRef = React.useRef<HTMLInputElement>(null);
   const materialTagRef = React.useRef<HTMLInputElement>(null);
   const sizeTagRef = React.useRef<HTMLInputElement>(null);
-  const measurementsRef = React.useRef<HTMLInputElement>(null);
   const additionalRef = React.useRef<HTMLInputElement>(null);
 
   // Status message rotation
@@ -179,18 +179,23 @@ const Dashboard: React.FC = () => {
   const handleDroppedFiles = (files: FileList) => {
     const fileArray = Array.from(files);
     if (fileArray.length > 0) {
-      setStep1Images(prev => ({
-        materialTag: fileArray[0] || prev.materialTag,
-        sizeTag: fileArray[1] || prev.sizeTag,
-        measurements: fileArray[2] || prev.measurements,
-      }));
-      if (fileArray.length > 3) {
-        setAdditionalImages(fileArray.slice(3, 10));
+      if (step1Status !== 'idle' && step1Status !== 'error') {
+        const spaceLeft = 7 - additionalImages.length;
+        setAdditionalImages(prev => [...prev, ...fileArray.slice(0, spaceLeft)]);
+      } else {
+        setStep1Images(prev => ({
+          cover: fileArray[0] || prev.cover,
+          materialTag: fileArray[1] || prev.materialTag,
+          sizeTag: fileArray[2] || prev.sizeTag,
+        }));
+        if (fileArray.length > 3) {
+          setAdditionalImages(fileArray.slice(3, 10));
+        }
       }
     }
   };
 
-  const handleFileChange = (slot: 'materialTag' | 'sizeTag' | 'measurements', file: File | null) => {
+  const handleFileChange = (slot: 'cover' | 'materialTag' | 'sizeTag', file: File | null) => {
     setStep1Images(prev => ({
       ...prev,
       [slot]: file
@@ -204,13 +209,13 @@ const Dashboard: React.FC = () => {
   };
 
   const handleSendToAI = async () => {
-    if (!step1Images.materialTag || !step1Images.sizeTag || !step1Images.measurements) return;
+    if (!step1Images.cover || !step1Images.materialTag || !step1Images.sizeTag) return;
 
     setStep1Status('uploading');
     const formData = new FormData();
+    formData.append('images', step1Images.cover);
     formData.append('images', step1Images.materialTag);
     formData.append('images', step1Images.sizeTag);
-    formData.append('images', step1Images.measurements);
 
     try {
       setTimeout(() => {
@@ -252,16 +257,16 @@ const Dashboard: React.FC = () => {
   };
 
   const handleResetUploadFlow = () => {
-    setStep1Images({ materialTag: null, sizeTag: null, measurements: null });
+    setStep1Images({ cover: null, materialTag: null, sizeTag: null });
     setAdditionalImages([]);
     setStep1Status('idle');
     setStep2Status('idle');
     setDraftId(null);
     setSimulatedProgress(0);
     setStatusMessageIndex(0);
+    if (coverRef.current) coverRef.current.value = '';
     if (materialTagRef.current) materialTagRef.current.value = '';
     if (sizeTagRef.current) sizeTagRef.current.value = '';
-    if (measurementsRef.current) measurementsRef.current.value = '';
     if (additionalRef.current) additionalRef.current.value = '';
   };
 
@@ -284,7 +289,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleSlotDrop = (e: React.DragEvent, slot: 'materialTag' | 'sizeTag' | 'measurements') => {
+  const handleSlotDrop = (e: React.DragEvent, slot: 'cover' | 'materialTag' | 'sizeTag') => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
@@ -440,7 +445,23 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
             dragActive ? 'border-blue-500 bg-blue-500/5' : 'border-white/5'
           }`}
         >
+          {/* Drag over overlay for detail photos */}
+          {dragActive && step1Status !== 'idle' && step1Status !== 'error' && (
+            <div className="absolute inset-0 bg-blue-600/10 backdrop-blur-sm border-2 border-dashed border-blue-500 rounded-2xl flex flex-col items-center justify-center pointer-events-none z-10 animate-pulse">
+              <Plus className="text-blue-400 mb-2 animate-bounce" size={32} />
+              <p className="text-sm font-bold text-white">Drop to add detail photos</p>
+              <p className="text-xs text-slate-400 mt-1">Up to {7 - additionalImages.length} more files</p>
+            </div>
+          )}
+
           {/* Hidden inputs */}
+          <input 
+            ref={coverRef}
+            type="file" 
+            accept="image/*" 
+            className="hidden" 
+            onChange={(e) => e.target.files && handleFileChange('cover', e.target.files[0])} 
+          />
           <input 
             ref={materialTagRef}
             type="file" 
@@ -454,13 +475,6 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
             accept="image/*" 
             className="hidden" 
             onChange={(e) => e.target.files && handleFileChange('sizeTag', e.target.files[0])} 
-          />
-          <input 
-            ref={measurementsRef}
-            type="file" 
-            accept="image/*" 
-            className="hidden" 
-            onChange={(e) => e.target.files && handleFileChange('measurements', e.target.files[0])} 
           />
           <input 
             ref={additionalRef}
@@ -484,7 +498,51 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                 </p>
               </div>
 
-              {/* Slot 1: Material Tag */}
+              {/* Slot 1: Cover Photo */}
+              <div 
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDraggedOverSlot('cover'); }}
+                onDragLeave={() => setDraggedOverSlot(null)}
+                onDrop={(e) => handleSlotDrop(e, 'cover')}
+                className={`relative rounded-xl border transition-all ${
+                  draggedOverSlot === 'cover' 
+                    ? 'border-blue-500 bg-blue-500/10 scale-[1.01] shadow-lg shadow-blue-500/5' 
+                    : 'border-transparent'
+                }`}
+              >
+                {step1Images.cover ? (
+                  <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-xl">
+                    <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-slate-900 border border-white/5">
+                      <img src={URL.createObjectURL(step1Images.cover)} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-slate-200 truncate">1. Cover Photo</p>
+                      <p className="text-[10px] text-slate-500 truncate">{step1Images.cover.name}</p>
+                    </div>
+                    <button 
+                      onClick={() => handleFileChange('cover', null)}
+                      className="p-1 hover:text-red-400 hover:bg-white/5 rounded transition-all cursor-pointer"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => coverRef.current?.click()}
+                    className="w-full flex items-center gap-3 p-3.5 border border-dashed border-white/10 hover:border-blue-500/30 bg-white/[0.01] hover:bg-white/[0.03] rounded-xl text-left transition-all group cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0 border border-blue-500/20 group-hover:scale-105 transition-transform">
+                      <Camera className="text-blue-400" size={16} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-200">1. Cover Photo</p>
+                      <p className="text-[9px] text-slate-500 mt-0.5">Clear, centered shot of front of the item</p>
+                    </div>
+                  </button>
+                )}
+              </div>
+
+              {/* Slot 2: Material Tag */}
               <div 
                 onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                 onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDraggedOverSlot('materialTag'); }}
@@ -502,7 +560,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                       <img src={URL.createObjectURL(step1Images.materialTag)} alt="" className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-slate-200 truncate">1. Material Tag</p>
+                      <p className="text-xs font-bold text-slate-200 truncate">2. Material Tag</p>
                       <p className="text-[10px] text-slate-500 truncate">{step1Images.materialTag.name}</p>
                     </div>
                     <button 
@@ -521,14 +579,14 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                       <Tag className="text-blue-400" size={16} />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-200">1. Material Tag</p>
+                      <p className="text-xs font-bold text-slate-200">2. Material Tag</p>
                       <p className="text-[9px] text-slate-500 mt-0.5">Fabric contents, material labels & origin</p>
                     </div>
                   </button>
                 )}
               </div>
 
-              {/* Slot 2: Size Tag */}
+              {/* Slot 3: Size Tag */}
               <div 
                 onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                 onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDraggedOverSlot('sizeTag'); }}
@@ -546,7 +604,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                       <img src={URL.createObjectURL(step1Images.sizeTag)} alt="" className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-slate-200 truncate">2. Size Tag</p>
+                      <p className="text-xs font-bold text-slate-200 truncate">3. Size Tag</p>
                       <p className="text-[10px] text-slate-500 truncate">{step1Images.sizeTag.name}</p>
                     </div>
                     <button 
@@ -565,52 +623,8 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                       <Layers className="text-blue-400" size={16} />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-200">2. Size Tag</p>
+                      <p className="text-xs font-bold text-slate-200">3. Size Tag</p>
                       <p className="text-[9px] text-slate-500 mt-0.5">Brand tag, size labels</p>
-                    </div>
-                  </button>
-                )}
-              </div>
-
-              {/* Slot 3: measurements */}
-              <div 
-                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDraggedOverSlot('measurements'); }}
-                onDragLeave={() => setDraggedOverSlot(null)}
-                onDrop={(e) => handleSlotDrop(e, 'measurements')}
-                className={`relative rounded-xl border transition-all ${
-                  draggedOverSlot === 'measurements' 
-                    ? 'border-blue-500 bg-blue-500/10 scale-[1.01] shadow-lg shadow-blue-500/5' 
-                    : 'border-transparent'
-                }`}
-              >
-                {step1Images.measurements ? (
-                  <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-xl">
-                    <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-slate-900 border border-white/5">
-                      <img src={URL.createObjectURL(step1Images.measurements)} alt="" className="w-full h-full object-cover" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-slate-200 truncate">3. SKU & Weight</p>
-                      <p className="text-[10px] text-slate-500 truncate">{step1Images.measurements.name}</p>
-                    </div>
-                    <button 
-                      onClick={() => handleFileChange('measurements', null)}
-                      className="p-1 hover:text-red-400 hover:bg-white/5 rounded transition-all cursor-pointer"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                ) : (
-                  <button 
-                    onClick={() => measurementsRef.current?.click()}
-                    className="w-full flex items-center gap-3 p-3.5 border border-dashed border-white/10 hover:border-blue-500/30 bg-white/[0.01] hover:bg-white/[0.03] rounded-xl text-left transition-all group cursor-pointer"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0 border border-blue-500/20 group-hover:scale-105 transition-transform">
-                      <Scale className="text-blue-400" size={16} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-200">3. SKU & Weight</p>
-                      <p className="text-[9px] text-slate-500 mt-0.5">Barcode SKU & shipping scale shot</p>
                     </div>
                   </button>
                 )}
@@ -625,9 +639,9 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
               {/* Submit to AI */}
               <button 
                 onClick={handleSendToAI}
-                disabled={!step1Images.materialTag || !step1Images.sizeTag || !step1Images.measurements}
+                disabled={!step1Images.cover || !step1Images.materialTag || !step1Images.sizeTag}
                 className={`w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 border text-sm shadow-md transition-all ${
-                  (step1Images.materialTag && step1Images.sizeTag && step1Images.measurements)
+                  (step1Images.cover && step1Images.materialTag && step1Images.sizeTag)
                     ? 'bg-blue-500 hover:bg-blue-600 text-white border-blue-600 cursor-pointer shadow-blue-500/10 active:scale-[0.99]'
                     : 'bg-white/5 text-slate-500 border-white/5 opacity-50 cursor-not-allowed'
                 }`}
