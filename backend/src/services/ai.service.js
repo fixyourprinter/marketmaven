@@ -120,4 +120,76 @@ async function processImages(imagePaths) {
   }
 }
 
-module.exports = { processImages };
+async function extractAspectsFromText(title, description) {
+  console.log(`[AIService] extractAspectsFromText starting... Using model: "${VISION_MODEL}"`);
+  try {
+    const prompt = `
+      You are an expert assistant for eBay listings. Analyze the following clothing listing title and description.
+      Extract standard eBay item specifics and return a clean JSON object.
+
+      Title: ${title}
+      Description: ${description}
+
+      Extract only fields that are explicitly stated or strongly implied in the text. If a field cannot be determined, set it to null. Do NOT hallucinate.
+      
+      JSON keys to extract:
+      1. Brand
+      2. Size
+      3. Size Type (e.g., Regular, Petite, Plus, Big & Tall)
+      4. Department (e.g., Women, Men, Girls, Boys, Unisex Kids)
+      5. Type (e.g., Jeans, Sweater, T-Shirt, Leggings, Pants, Blouse)
+      6. Color
+      7. Material (e.g., 70% Cotton, 30% Polyester)
+      8. Rise (e.g., Low, Mid, High)
+      9. Closure (e.g., Button, Pull On, Zip, Tie, Drawstring)
+      10. Fit (e.g., Slim, Relaxed, Skinny, Regular)
+      11. Pattern (e.g., Solid, Striped, Floral, Geometric)
+      12. Fabric Type (e.g., Denim, Waffle Knit, Knit, Rayon, Fleece)
+      13. Sleeve Length (e.g., Long Sleeve, Short Sleeve, Sleeveless)
+      14. Country/Region of Manufacture
+
+      Return ONLY a valid JSON object matching this structure:
+      {
+        "Brand": "...",
+        "Size": "...",
+        "Size Type": "...",
+        "Department": "...",
+        "Type": "...",
+        "Color": "...",
+        "Material": "...",
+        "Rise": "...",
+        "Closure": "...",
+        "Fit": "...",
+        "Pattern": "...",
+        "Fabric Type": "...",
+        "Sleeve Length": "...",
+        "Country/Region of Manufacture": "..."
+      }
+    `;
+
+    const response = await axios.post(`${OLLAMA_URL}/api/chat`, {
+      model: VISION_MODEL,
+      messages: [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      stream: false,
+      format: 'json'
+    }, {
+      timeout: 90000 // 1.5 minute timeout
+    });
+
+    return JSON.parse(response.data.message.content);
+  } catch (error) {
+    if (error.response) {
+      console.error('Ollama Aspect Extract Error Response:', error.response.data);
+    }
+    console.error('Error extracting aspects from text:', error.message);
+    throw new Error('AI aspect extraction failed');
+  }
+}
+
+module.exports = { processImages, extractAspectsFromText };
+

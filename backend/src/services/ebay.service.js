@@ -563,6 +563,77 @@ class EbayService {
     }
   }
 
+  async bulkReviseTraditionalListings(items) {
+    if (!this.accessToken) throw new Error('Not authenticated with eBay');
+
+    const tradingUrl = this.isSandbox
+      ? 'https://api.sandbox.ebay.com/ws/api.dll'
+      : 'https://api.ebay.com/ws/api.dll';
+
+    const results = [];
+
+    for (const item of items) {
+      const { listingId, title, price, quantity, specifics } = item;
+      
+      let specificsXml = '';
+      if (specifics && Object.keys(specifics).length > 0) {
+        specificsXml = '<ItemSpecifics>';
+        for (const [name, value] of Object.entries(specifics)) {
+          if (value !== null && value !== undefined && value !== '') {
+            specificsXml += `
+            <NameValueList>
+              <Name>${escapeXml(name)}</Name>
+              <Value>${escapeXml(String(value))}</Value>
+            </NameValueList>`;
+          }
+        }
+        specificsXml += '</ItemSpecifics>';
+      }
+
+      const xml = `<?xml version="1.0" encoding="utf-8"?>
+<ReviseItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+  <Item>
+    <ItemID>${listingId}</ItemID>
+    ${title ? `<Title>${escapeXml(title)}</Title>` : ''}
+    ${price ? `<StartPrice>${price}</StartPrice>` : ''}
+    ${quantity !== undefined ? `<Quantity>${quantity}</Quantity>` : ''}
+    ${specificsXml}
+  </Item>
+</ReviseItemRequest>`;
+
+      console.log(`[EbayService] ReviseItem for ${listingId}...`);
+      try {
+        const response = await axios.post(tradingUrl, xml, {
+          headers: {
+            'X-EBAY-API-COMPATIBILITY-LEVEL': '1235',
+            'X-EBAY-API-CALL-NAME': 'ReviseItem',
+            'X-EBAY-API-SITEID': '0',
+            'X-EBAY-API-IAF-TOKEN': this.accessToken,
+            'Content-Type': 'text/xml'
+          }
+        });
+
+        const data = response.data;
+        const ackMatch = data.match(/<Ack>(.*?)<\/Ack>/);
+        const ack = ackMatch ? ackMatch[1] : '';
+        if (ack !== 'Success' && ack !== 'Warning') {
+          const errorMatch = data.match(/<LongMessage>(.*?)<\/LongMessage>/);
+          const errorMsg = errorMatch ? errorMatch[1] : 'Unknown eBay ReviseItem error';
+          results.push({ listingId, status: 'error', error: errorMsg });
+        } else {
+          results.push({ listingId, status: 'success' });
+        }
+      } catch (err) {
+        console.error(`Failed to revise traditional item ${listingId}:`, err.message);
+        results.push({ listingId, status: 'error', error: err.message });
+      }
+
+      await new Promise(r => setTimeout(r, 200));
+    }
+
+    return results;
+  }
+
   async deleteInventoryItem(sku) {
     if (!this.accessToken) throw new Error('Not authenticated with eBay');
     try {
@@ -1077,4 +1148,19 @@ function parseItemsFromXml(xml, status) {
   return items;
 }
 
+function escapeXml(unsafe) {
+  if (!unsafe) return '';
+  return unsafe.replace(/[<>&'"]/g, function (c) {
+    switch (c) {
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '&': return '&amp;';
+      case '\'': return '&apos;';
+      case '"': return '&quot;';
+      default: return c;
+    }
+  });
+}
+
 module.exports = new EbayService();
+

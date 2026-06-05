@@ -66,6 +66,15 @@ const EbayInventory: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [customCountryMode, setCustomCountryMode] = useState(false);
   const [customSizeMode, setCustomSizeMode] = useState(false);
+  
+  const [editingItemLoading, setEditingItemLoading] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [bulkActionTab, setBulkActionTab] = useState<'manual' | 'ai'>('manual');
+  const [bulkField, setBulkField] = useState('Country/Region of Manufacture');
+  const [bulkValue, setBulkValue] = useState('');
+  const [isDiagnosing, setIsDiagnosing] = useState(false);
+  const [diagnosedItems, setDiagnosedItems] = useState<any[]>([]);
+  const [bulkProgress, setBulkProgress] = useState<string | null>(null);
 
   const fetchInventory = async () => {
     setLoading(true);
@@ -123,54 +132,80 @@ const EbayInventory: React.FC = () => {
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [isBulkEdit, setIsBulkEdit] = useState(false);
 
-  const handleEdit = (item: InventoryItem) => {
-    const val = item.product?.aspects?.['Country/Region of Manufacture']?.[0] || '';
-    setCustomCountryMode(val !== '' && !COMMON_COUNTRIES.includes(val));
-    const sizeVal = item.product?.aspects?.Size?.[0] || '';
-    setCustomSizeMode(sizeVal !== '' && !COMMON_SIZES.includes(sizeVal));
-    setEditingItem(JSON.parse(JSON.stringify(item)));
-    setIsBulkEdit(false);
-    setIsEditModalOpen(true);
+  const handleEdit = async (item: InventoryItem) => {
+    if (item.isTraditional && item.listingId) {
+      setEditingItemLoading(true);
+      try {
+        const detailRes = await axios.post('/api/listings/import-comps', { itemId: item.listingId });
+        const specifics = detailRes.data.specifics || {};
+        
+        const formattedAspects: Record<string, string[]> = {};
+        for (const [k, v] of Object.entries(specifics)) {
+          formattedAspects[k] = [String(v)];
+        }
+
+        const enrichedItem: InventoryItem = {
+          ...item,
+          product: {
+            ...item.product,
+            description: detailRes.data.description,
+            aspects: formattedAspects
+          }
+        };
+
+        const val = enrichedItem.product?.aspects?.['Country/Region of Manufacture']?.[0] || '';
+        setCustomCountryMode(val !== '' && !COMMON_COUNTRIES.includes(val));
+        const sizeVal = enrichedItem.product?.aspects?.Size?.[0] || '';
+        setCustomSizeMode(sizeVal !== '' && !COMMON_SIZES.includes(sizeVal));
+        
+        setEditingItem(enrichedItem);
+        setIsBulkEdit(false);
+        setIsEditModalOpen(true);
+      } catch (err) {
+        alert('Failed to load item details from eBay.');
+      } finally {
+        setEditingItemLoading(false);
+      }
+    } else {
+      const val = item.product?.aspects?.['Country/Region of Manufacture']?.[0] || '';
+      setCustomCountryMode(val !== '' && !COMMON_COUNTRIES.includes(val));
+      const sizeVal = item.product?.aspects?.Size?.[0] || '';
+      setCustomSizeMode(sizeVal !== '' && !COMMON_SIZES.includes(sizeVal));
+      setEditingItem(JSON.parse(JSON.stringify(item)));
+      setIsBulkEdit(false);
+      setIsEditModalOpen(true);
+    }
   };
 
   const handleBulkEdit = () => {
-    setCustomCountryMode(false);
-    setCustomSizeMode(false);
-    setEditingItem({
-      sku: 'BULK',
-      product: { title: '', aspects: {} },
-      condition: '',
-      availability: { shipToLocationAvailability: { quantity: 1 } }
-    });
-    setIsBulkEdit(true);
-    setIsEditModalOpen(true);
+    setBulkField('Country/Region of Manufacture');
+    setBulkValue('');
+    setDiagnosedItems([]);
+    setBulkActionTab('manual');
+    setIsBulkModalOpen(true);
   };
 
   const saveEdit = async () => {
     if (!editingItem) return;
+    setLoading(true);
     try {
-      if (isBulkEdit) {
-        // Build aspects payload with only non-empty values
-        const updatedAspects: Record<string, string[]> = {};
-        if (editingItem.product?.aspects?.Brand?.[0]) {
-          updatedAspects.Brand = [editingItem.product.aspects.Brand[0]];
+      if (editingItem.isTraditional && editingItem.listingId) {
+        const specifics: Record<string, string> = {};
+        if (editingItem.product?.aspects) {
+          for (const [k, v] of Object.entries(editingItem.product.aspects)) {
+            if (v?.[0]) specifics[k] = v[0];
+          }
         }
-        if (editingItem.product?.aspects?.Size?.[0]) {
-          updatedAspects.Size = [editingItem.product.aspects.Size[0]];
-        }
-        if (editingItem.product?.aspects?.['Country/Region of Manufacture']?.[0]) {
-          updatedAspects['Country/Region of Manufacture'] = [editingItem.product.aspects['Country/Region of Manufacture'][0]];
-        }
+        
+        const payload = [{
+          listingId: editingItem.listingId,
+          title: editingItem.product.title,
+          quantity: editingItem.availability?.shipToLocationAvailability?.quantity,
+          specifics
+        }];
 
-        const promises = Array.from(selectedSkus).map(sku => 
-          axios.put(`${API_BASE}/ebay/inventory/${sku}`, {
-            product: {
-              aspects: updatedAspects
-            }
-          })
-        );
-        await Promise.all(promises);
-        alert(`Successfully updated ${selectedSkus.size} items!`);
+        await axios.post(`${API_BASE}/ebay/inventory/bulk-revise`, { items: payload });
+        alert('Item updated successfully on eBay!');
       } else {
         await axios.put(`${API_BASE}/ebay/inventory/${editingItem.sku}`, editingItem);
         alert('Item updated successfully!');
@@ -180,6 +215,153 @@ const EbayInventory: React.FC = () => {
       fetchInventory();
     } catch (error) {
       alert('Failed to save changes.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const runAiDiagnosis = async () => {
+    setIsDiagnosing(true);
+    setBulkProgress("Loading item details from eBay...");
+    try {
+      const selectedItemsList = items.filter(item => selectedSkus.has(item.sku));
+      const itemsWithDetails = [];
+      
+      let count = 0;
+      for (const item of selectedItemsList) {
+        count++;
+        setBulkProgress(`Fetching details for item ${count} of ${selectedItemsList.length}...`);
+        if (item.product.description) {
+          itemsWithDetails.push(item);
+        } else if (item.listingId) {
+          try {
+            const detailRes = await axios.post('/api/listings/import-comps', { itemId: item.listingId });
+            itemsWithDetails.push({
+              ...item,
+              product: {
+                ...item.product,
+                description: detailRes.data.description,
+                aspects: detailRes.data.specifics
+              }
+            });
+          } catch (err) {
+            console.error(`Failed to fetch details for ${item.listingId}`);
+            itemsWithDetails.push({
+              ...item,
+              product: {
+                ...item.product,
+                description: '',
+                aspects: {}
+              }
+            });
+          }
+        }
+      }
+
+      setBulkProgress("Running AI aspect analysis on descriptions...");
+      const repairPayload = itemsWithDetails.map(i => ({
+        listingId: i.listingId || i.sku,
+        title: i.product.title,
+        description: i.product.description || ''
+      }));
+
+      const extractRes = await axios.post('/api/ebay/inventory/bulk-repair-extract', { items: repairPayload });
+      
+      const results = extractRes.data.results;
+      const diagnosed = itemsWithDetails.map(item => {
+        const match = results.find((r: any) => r.listingId === item.listingId);
+        const extractedSpecs = match?.status === 'success' ? match.specifics : {};
+        
+        const cleanedSpecs: Record<string, string> = {};
+        if (extractedSpecs) {
+          for (const [k, v] of Object.entries(extractedSpecs)) {
+            cleanedSpecs[k] = v === null ? '' : String(v);
+          }
+        }
+
+        return {
+          sku: item.sku,
+          listingId: item.listingId,
+          title: item.product.title,
+          description: item.product.description,
+          originalSpecifics: item.product.aspects || {},
+          specifics: cleanedSpecs
+        };
+      });
+
+      setDiagnosedItems(diagnosed);
+      setBulkProgress(null);
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.error || 'AI Diagnosis failed');
+      setBulkProgress(null);
+    } finally {
+      setIsDiagnosing(false);
+    }
+  };
+
+  const saveManualBulk = async () => {
+    setLoading(true);
+    try {
+      const selectedItemsList = items.filter(item => selectedSkus.has(item.sku));
+      const payloadItems = selectedItemsList.map(item => {
+        const isPrice = bulkField === 'StartPrice';
+        const isQty = bulkField === 'Quantity';
+        
+        return {
+          listingId: item.listingId || item.sku,
+          price: isPrice ? bulkValue : undefined,
+          quantity: isQty ? parseInt(bulkValue) : undefined,
+          specifics: (!isPrice && !isQty) ? { [bulkField]: bulkValue } : undefined
+        };
+      });
+
+      const res = await axios.post('/api/ebay/inventory/bulk-revise', { items: payloadItems });
+      const results = res.data.results || [];
+      
+      const errors = results.filter((r: any) => r.status === 'error');
+      if (errors.length > 0) {
+        alert(`Update finished with some errors:\n${errors.map((e: any) => `ID ${e.listingId}: ${e.error}`).join('\n')}`);
+      } else {
+        alert(`Successfully updated ${results.length} items on eBay!`);
+      }
+      
+      setIsBulkModalOpen(false);
+      setSelectedSkus(new Set());
+      fetchInventory();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Bulk update failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveAiBulk = async () => {
+    setLoading(true);
+    try {
+      const payloadItems = diagnosedItems.map(item => ({
+        listingId: item.listingId,
+        specifics: item.specifics
+      }));
+
+      const res = await axios.post('/api/ebay/inventory/bulk-revise', { items: payloadItems });
+      const results = res.data.results || [];
+      
+      const errors = results.filter((r: any) => r.status === 'error');
+      if (errors.length > 0) {
+        alert(`Update finished with some errors:\n${errors.map((e: any) => `ID ${e.listingId}: ${e.error}`).join('\n')}`);
+      } else {
+        alert(`Successfully repaired and updated ${results.length} items on eBay!`);
+      }
+
+      setIsBulkModalOpen(false);
+      setSelectedSkus(new Set());
+      setDiagnosedItems([]);
+      fetchInventory();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Bulk repair sync failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -368,23 +550,113 @@ const EbayInventory: React.FC = () => {
                     )}
                   </div>
                 </div>
-                {!isBulkEdit && (
+
+                <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
-                    <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2">Quantity</label>
+                    <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2 font-sans">Material</label>
                     <input 
-                      type="number"
-                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans"
-                      value={editingItem.availability?.shipToLocationAvailability?.quantity ?? 1}
+                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                      value={editingItem.product?.aspects?.Material?.[0] || ''}
                       onChange={(e) => setEditingItem({
                         ...editingItem,
-                        availability: {
-                          ...editingItem.availability,
-                          shipToLocationAvailability: { quantity: parseInt(e.target.value) }
+                        product: {
+                          ...editingItem.product,
+                          aspects: {
+                            ...(editingItem.product?.aspects || {}),
+                            Material: [e.target.value]
+                          }
                         }
                       })}
                     />
                   </div>
-                )}
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2 font-sans">Rise</label>
+                    <input 
+                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                      value={editingItem.product?.aspects?.Rise?.[0] || ''}
+                      onChange={(e) => setEditingItem({
+                        ...editingItem,
+                        product: {
+                          ...editingItem.product,
+                          aspects: {
+                            ...(editingItem.product?.aspects || {}),
+                            Rise: [e.target.value]
+                          }
+                        }
+                      })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 mt-4">
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2 font-sans">Pattern</label>
+                    <input 
+                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                      value={editingItem.product?.aspects?.Pattern?.[0] || ''}
+                      onChange={(e) => setEditingItem({
+                        ...editingItem,
+                        product: {
+                          ...editingItem.product,
+                          aspects: {
+                            ...(editingItem.product?.aspects || {}),
+                            Pattern: [e.target.value]
+                          }
+                        }
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2 font-sans">Fit</label>
+                    <input 
+                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                      value={editingItem.product?.aspects?.Fit?.[0] || ''}
+                      onChange={(e) => setEditingItem({
+                        ...editingItem,
+                        product: {
+                          ...editingItem.product,
+                          aspects: {
+                            ...(editingItem.product?.aspects || {}),
+                            Fit: [e.target.value]
+                          }
+                        }
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2 font-sans">Closure</label>
+                    <input 
+                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                      value={editingItem.product?.aspects?.Closure?.[0] || ''}
+                      onChange={(e) => setEditingItem({
+                        ...editingItem,
+                        product: {
+                          ...editingItem.product,
+                          aspects: {
+                            ...(editingItem.product?.aspects || {}),
+                            Closure: [e.target.value]
+                          }
+                        }
+                      })}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2 font-sans">Quantity</label>
+                  <input 
+                    type="number"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                    value={editingItem.availability?.shipToLocationAvailability?.quantity ?? 1}
+                    onChange={(e) => setEditingItem({
+                      ...editingItem,
+                      availability: {
+                        ...editingItem.availability,
+                        shipToLocationAvailability: { quantity: parseInt(e.target.value) }
+                      }
+                    })}
+                  />
+                </div>
               </div>
               <div className="p-6 border-t border-white/5 bg-white/5 flex justify-end gap-4">
                 <button 
@@ -404,8 +676,291 @@ const EbayInventory: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Bulk Actions Modal */}
+      <AnimatePresence>
+        {isBulkModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => { if (!isDiagnosing) setIsBulkModalOpen(false); }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-4xl bg-[#0f0f12] border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+            >
+              <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
+                <div>
+                  <h3 className="text-xl font-bold flex items-center gap-2">
+                    <span>Bulk Actions / Repair</span>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/25">
+                      {selectedSkus.size} items selected
+                    </span>
+                  </h3>
+                </div>
+                <button 
+                  disabled={isDiagnosing}
+                  onClick={() => setIsBulkModalOpen(false)} 
+                  className="text-slate-400 hover:text-white disabled:opacity-20"
+                >
+                   &times;
+                </button>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex border-b border-white/5 bg-white/5">
+                <button
+                  type="button"
+                  disabled={isDiagnosing}
+                  onClick={() => setBulkActionTab('manual')}
+                  className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-all ${
+                    bulkActionTab === 'manual' 
+                      ? 'border-[#B9735D] text-white bg-white/[0.02]' 
+                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Manual Bulk Edit
+                </button>
+                <button
+                  type="button"
+                  disabled={isDiagnosing}
+                  onClick={() => setBulkActionTab('ai')}
+                  className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-all ${
+                    bulkActionTab === 'ai' 
+                      ? 'border-[#B9735D] text-white bg-white/[0.02]' 
+                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  AI Auto-Repair
+                </button>
+              </div>
+
+              <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto">
+                {bulkProgress && (
+                  <div className="bg-blue-500/5 border border-blue-500/10 p-6 rounded-xl text-center space-y-4">
+                    <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    <p className="text-slate-300 font-medium animate-pulse">{bulkProgress}</p>
+                  </div>
+                )}
+
+                {!bulkProgress && bulkActionTab === 'manual' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2">Aspect / Field</label>
+                        <select
+                          className="w-full bg-[#151a18] border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                          value={bulkField}
+                          onChange={(e) => setBulkField(e.target.value)}
+                        >
+                          <option value="Country/Region of Manufacture">Country of Origin</option>
+                          <option value="Brand">Brand</option>
+                          <option value="Material">Material</option>
+                          <option value="Size">Size</option>
+                          <option value="Size Type">Size Type</option>
+                          <option value="Department">Department</option>
+                          <option value="Color">Color</option>
+                          <option value="Rise">Rise</option>
+                          <option value="Pattern">Pattern</option>
+                          <option value="Fit">Fit</option>
+                          <option value="Closure">Closure</option>
+                          <option value="Fabric Type">Fabric Type</option>
+                          <option value="Sleeve Length">Sleeve Length</option>
+                          <option value="Quantity">Quantity</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2">New Value</label>
+                        <input
+                          className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 text-slate-200 font-sans"
+                          placeholder="Enter value to write to all..."
+                          value={bulkValue}
+                          onChange={(e) => setBulkValue(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="p-4 bg-slate-900/40 border border-white/5 rounded-xl text-xs text-slate-400">
+                      This will write the value <strong className="text-white">"{bulkValue || 'empty'}"</strong> to the field <strong className="text-white">"{bulkField}"</strong> for all <strong className="text-white">{selectedSkus.size}</strong> selected items directly on eBay.
+                    </div>
+                  </div>
+                )}
+
+                {!bulkProgress && bulkActionTab === 'ai' && diagnosedItems.length === 0 && (
+                  <div className="text-center py-12 space-y-6">
+                    <div className="max-w-md mx-auto space-y-2">
+                      <h4 className="text-lg font-bold text-white">Extract Missing Aspects with AI</h4>
+                      <p className="text-sm text-slate-400">
+                        The AI will scan each listing's description to find details like brand, size, country of origin, rise, pattern, and closure, then populate them as structured eBay specifics.
+                      </p>
+                    </div>
+                    <button
+                      onClick={runAiDiagnosis}
+                      className="px-8 py-3 bg-[#B9735D] hover:bg-[#a6624c] text-white rounded-xl font-bold shadow-lg transition-all"
+                    >
+                      Run AI Diagnosis
+                    </button>
+                  </div>
+                )}
+
+                {!bulkProgress && bulkActionTab === 'ai' && diagnosedItems.length > 0 && (
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest">Review Extracted Specifics</h4>
+                      <button 
+                        onClick={runAiDiagnosis} 
+                        className="text-xs text-blue-400 hover:text-white font-bold flex items-center gap-1.5 bg-transparent border-none outline-none cursor-pointer"
+                      >
+                        <RefreshCcw size={12} />
+                        Re-run Diagnosis
+                      </button>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      {diagnosedItems.map((item, idx) => (
+                        <div key={item.sku} className="bg-white/[0.02] border border-white/5 rounded-xl p-5 space-y-4 text-left">
+                          <div>
+                            <p className="text-xs font-bold text-blue-400 mb-1">SKU: {item.sku} {item.listingId ? `(ID: ${item.listingId})` : ''}</p>
+                            <p className="text-sm font-semibold text-slate-200 uppercase tracking-tight italic font-serif leading-tight">{item.title}</p>
+                          </div>
+                          
+                          <div className="grid grid-cols-4 gap-4">
+                            {/* Brand */}
+                            <div>
+                              <label className="text-[9px] uppercase tracking-widest text-slate-500 font-bold block mb-1">Brand</label>
+                              <input 
+                                className="w-full bg-white/5 border border-white/10 rounded p-2 text-xs text-slate-200 font-sans"
+                                value={item.specifics.Brand || ''}
+                                onChange={(e) => {
+                                  const updated = [...diagnosedItems];
+                                  updated[idx].specifics.Brand = e.target.value;
+                                  setDiagnosedItems(updated);
+                                }}
+                              />
+                            </div>
+                            {/* Size */}
+                            <div>
+                              <label className="text-[9px] uppercase tracking-widest text-slate-500 font-bold block mb-1">Size</label>
+                              <input 
+                                className="w-full bg-white/5 border border-white/10 rounded p-2 text-xs text-slate-200 font-sans"
+                                value={item.specifics.Size || ''}
+                                onChange={(e) => {
+                                  const updated = [...diagnosedItems];
+                                  updated[idx].specifics.Size = e.target.value;
+                                  setDiagnosedItems(updated);
+                                }}
+                              />
+                            </div>
+                            {/* Country of Origin */}
+                            <div>
+                              <label className="text-[9px] uppercase tracking-widest text-slate-500 font-bold block mb-1">Origin</label>
+                              <input 
+                                className="w-full bg-white/5 border border-white/10 rounded p-2 text-xs text-slate-200 font-sans"
+                                value={item.specifics['Country/Region of Manufacture'] || ''}
+                                onChange={(e) => {
+                                  const updated = [...diagnosedItems];
+                                  updated[idx].specifics['Country/Region of Manufacture'] = e.target.value;
+                                  setDiagnosedItems(updated);
+                                }}
+                              />
+                            </div>
+                            {/* Rise */}
+                            <div>
+                              <label className="text-[9px] uppercase tracking-widest text-slate-500 font-bold block mb-1">Rise</label>
+                              <input 
+                                className="w-full bg-white/5 border border-white/10 rounded p-2 text-xs text-slate-200 font-sans"
+                                value={item.specifics.Rise || ''}
+                                onChange={(e) => {
+                                  const updated = [...diagnosedItems];
+                                  updated[idx].specifics.Rise = e.target.value;
+                                  setDiagnosedItems(updated);
+                                }}
+                              />
+                            </div>
+                            {/* Pattern */}
+                            <div>
+                              <label className="text-[9px] uppercase tracking-widest text-slate-500 font-bold block mb-1">Pattern</label>
+                              <input 
+                                className="w-full bg-white/5 border border-white/10 rounded p-2 text-xs text-slate-200 font-sans"
+                                value={item.specifics.Pattern || ''}
+                                onChange={(e) => {
+                                  const updated = [...diagnosedItems];
+                                  updated[idx].specifics.Pattern = e.target.value;
+                                  setDiagnosedItems(updated);
+                                }}
+                              />
+                            </div>
+                            {/* Fit */}
+                            <div>
+                              <label className="text-[9px] uppercase tracking-widest text-slate-500 font-bold block mb-1">Fit</label>
+                              <input 
+                                className="w-full bg-white/5 border border-white/10 rounded p-2 text-xs text-slate-200 font-sans"
+                                value={item.specifics.Fit || ''}
+                                onChange={(e) => {
+                                  const updated = [...diagnosedItems];
+                                  updated[idx].specifics.Fit = e.target.value;
+                                  setDiagnosedItems(updated);
+                                }}
+                              />
+                            </div>
+                            {/* Material */}
+                            <div className="col-span-2">
+                              <label className="text-[9px] uppercase tracking-widest text-slate-500 font-bold block mb-1">Material</label>
+                              <input 
+                                className="w-full bg-white/5 border border-white/10 rounded p-2 text-xs text-slate-200 font-sans"
+                                value={item.specifics.Material || ''}
+                                onChange={(e) => {
+                                  const updated = [...diagnosedItems];
+                                  updated[idx].specifics.Material = e.target.value;
+                                  setDiagnosedItems(updated);
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 border-t border-white/5 bg-white/5 flex justify-end gap-4">
+                <button 
+                  disabled={isDiagnosing}
+                  onClick={() => setIsBulkModalOpen(false)}
+                  className="px-6 py-2 glass rounded-xl hover:bg-white/10 disabled:opacity-20"
+                >
+                  Cancel
+                </button>
+                {bulkActionTab === 'manual' ? (
+                  <button 
+                    disabled={!bulkValue || loading}
+                    onClick={saveManualBulk}
+                    className="px-6 py-3 bg-[#B9735D] hover:bg-[#a6624c] text-white rounded-xl font-bold shadow-lg disabled:opacity-30 disabled:cursor-not-allowed px-8"
+                  >
+                    Apply changes to {selectedSkus.size} items
+                  </button>
+                ) : (
+                  <button 
+                    disabled={diagnosedItems.length === 0 || loading}
+                    onClick={saveAiBulk}
+                    className="px-6 py-3 bg-[#B9735D] hover:bg-[#a6624c] text-white rounded-xl font-bold shadow-lg disabled:opacity-30 disabled:cursor-not-allowed px-8"
+                  >
+                    Sync specifics to eBay ({diagnosedItems.length} items)
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-white flex items-center gap-3">
+        <h2 className="text-3xl font-bold text-white flex items-center gap-3 font-serif">
           <Package className="text-blue-400" />
           eBay Live Inventory
         </h2>
@@ -427,7 +982,7 @@ const EbayInventory: React.FC = () => {
             <input 
               type="text" 
               placeholder="Filter by title, brand, or SKU..."
-              className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:border-blue-500/50 outline-none transition-all"
+              className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:border-[#B9735D]/50 outline-none transition-all font-sans"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -440,9 +995,9 @@ const EbayInventory: React.FC = () => {
             >
               <button 
                 onClick={handleBulkEdit}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all"
+                className="px-6 py-3 bg-[#B9735D] hover:bg-[#a6624c] text-white rounded-xl font-bold shadow-lg shadow-[#B9735D]/20 transition-all"
               >
-                Bulk Update Selected ({selectedSkus.size})
+                Bulk Action / Repair ({selectedSkus.size})
               </button>
             </motion.div>
           )}
@@ -552,23 +1107,14 @@ const EbayInventory: React.FC = () => {
                       </td>
                       <td className="py-6 text-right pr-4 rounded-r-xl">
                         <div className="flex justify-end gap-2">
-                          {item.isTraditional ? (
-                            <button 
-                              disabled
-                              title="Traditional listings must be edited in eBay Seller Hub"
-                              className="p-3 glass rounded-xl opacity-30 cursor-not-allowed text-slate-500"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                          ) : (
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); handleEdit(item); }}
-                              className="p-3 glass rounded-xl hover:bg-blue-600 transition-all hover:text-white group/btn"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                          )}
+                           <button 
+                             disabled={editingItemLoading}
+                             onClick={(e) => { e.stopPropagation(); handleEdit(item); }}
+                             className="p-3 glass rounded-xl hover:bg-blue-600 transition-all hover:text-white group/btn disabled:opacity-30 disabled:cursor-not-allowed"
+                             title={editingItemLoading ? "Loading details..." : "Edit Listing specifics"}
+                           >
+                             <Edit2 size={16} className={editingItemLoading ? "animate-spin" : ""} />
+                           </button>
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleDelete(item.sku); }}
                             className="p-3 glass rounded-xl hover:bg-red-600 transition-all hover:text-white group/btn"

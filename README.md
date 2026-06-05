@@ -51,6 +51,9 @@ graph TD
 4. **Wife's Feedback Box**: An inline SQLite-backed suggestions queue on the dashboard that lets your wife send emoticons and text feedback. The admin dashboard lets you read, resolve, or delete feedback.
 5. **Interactive Settings**: On-the-fly toggling between **Cozy Dark** / **Bright Linen** (light mode) themes, and **Sandbox** / **Production** eBay environments (reloads credentials automatically).
 6. **Saturday Scheduling**: Automatically calculates and schedules draft publishing for the upcoming Saturday at 9:00 AM, publishing them directly as Scheduled listings in eBay Seller Hub.
+7. **Bulk Edit & AI Listing Repair**: Select multiple active or traditional listings from the inventory manager to perform batch updates:
+   * **Manual Bulk Edit**: Apply a single field value (like Country of Origin, Brand, or Quantity) to all selected listings at once.
+   * **AI Auto-Repair**: Scans listing descriptions using local AI to automatically identify and extract missing specifics (like Material, Rise, Pattern, Fit, and Closure) and publishes them directly to active eBay listings in one click.
 
 ---
 

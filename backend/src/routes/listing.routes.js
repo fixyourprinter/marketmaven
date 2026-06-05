@@ -3,7 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const Jimp = require('jimp');
-const { processImages } = require('../services/ai.service');
+const { processImages, extractAspectsFromText } = require('../services/ai.service');
 const ebayService = require('../services/ebay.service');
 const db = require('../db/database');
 
@@ -373,4 +373,45 @@ router.post('/import-comps', async (req, res) => {
   }
 });
 
+// Bulk extract aspects using AI from title and description
+router.post('/ebay/inventory/bulk-repair-extract', async (req, res) => {
+  const { items } = req.body;
+  if (!items || !Array.isArray(items)) {
+    return res.status(400).json({ error: 'Items array is required' });
+  }
+
+  const results = [];
+  console.log(`[ListingRoutes] bulk-repair-extract for ${items.length} items...`);
+
+  for (const item of items) {
+    const { listingId, title, description } = item;
+    try {
+      console.log(`[ListingRoutes] Extracting aspects for Item ID ${listingId}...`);
+      const specifics = await extractAspectsFromText(title, description);
+      results.push({ listingId, status: 'success', specifics });
+    } catch (err) {
+      console.error(`[ListingRoutes] Failed to extract aspects for item ${listingId}:`, err.message);
+      results.push({ listingId, status: 'error', error: err.message });
+    }
+  }
+
+  res.json({ results });
+});
+
+// Bulk revise traditional listings
+router.post('/ebay/inventory/bulk-revise', async (req, res) => {
+  const { items } = req.body;
+  if (!items || !Array.isArray(items)) {
+    return res.status(400).json({ error: 'Items array is required' });
+  }
+
+  try {
+    const results = await ebayService.bulkReviseTraditionalListings(items);
+    res.json({ results });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
+
