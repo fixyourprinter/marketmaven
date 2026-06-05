@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Package, Scale, Tag, ExternalLink, CheckCircle2, Clock, Camera, Copy, Trash2, ChevronRight, Layers, Sparkles, Plus, X, RefreshCw, MessageSquare } from 'lucide-react';
+import { Package, Scale, Tag, ExternalLink, CheckCircle2, Clock, Camera, Copy, Trash2, ChevronRight, Layers, Sparkles, Plus, X, RefreshCw, MessageSquare, Edit3, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 
@@ -40,6 +40,11 @@ const AI_STATUS_MESSAGES = [
 const Dashboard: React.FC = () => {
   const [items, setItems] = useState<ListingItem[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [editingDraftId, setEditingDraftId] = useState<number | null>(null);
+  const [editingDraftData, setEditingDraftData] = useState<Partial<ListingItem>>({});
+  const [importItemId, setImportItemId] = useState<string>('');
+  const [isImporting, setIsImporting] = useState<boolean>(false);
+  const [importError, setImportError] = useState<string>('');
 
   // Progressive Photo States
   const [step1Images, setStep1Images] = useState<{
@@ -343,6 +348,46 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
       fetchItems();
     } catch (error) {
       alert('Failed to delete item');
+    }
+  };
+
+  const handleSaveDraft = async (id: number) => {
+    try {
+      await axios.put(`${API_BASE}/listings/items/${id}`, editingDraftData);
+      setItems(items.map(item => item.id === id ? { ...item, ...editingDraftData } as ListingItem : item));
+      setEditingDraftId(null);
+    } catch (err) {
+      console.error('Failed to save draft changes:', err);
+      alert('Failed to save changes. Please try again.');
+    }
+  };
+
+  const handleImportComps = async (draftId: number) => {
+    if (!importItemId.trim()) {
+      setImportError('Please enter an eBay Item ID');
+      return;
+    }
+    setIsImporting(true);
+    setImportError('');
+    try {
+      const response = await axios.post(`${API_BASE}/listings/import-comps`, {
+        itemId: importItemId.trim(),
+        draftId
+      });
+      if (response.data && response.data.status === 'success') {
+        const updatedItem = response.data.item;
+        setItems(items.map(item => item.id === draftId ? updatedItem : item));
+        setEditingDraftData(updatedItem);
+        setImportItemId('');
+        alert('Details imported successfully from sold comp!');
+      } else {
+        setImportError(response.data?.error || 'Import failed');
+      }
+    } catch (err: any) {
+      console.error('Import failed:', err);
+      setImportError(err.response?.data?.error || 'Import failed. Check that the Item ID exists and you are authenticated.');
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -894,6 +939,26 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                               <td colSpan={4} className="p-0 overflow-hidden border-b border-white/5">
                                 <div className="p-8 bg-black/20 rounded-xl m-4 space-y-6 relative group/detail border border-white/5">
                                   <div className="absolute top-6 right-6 flex gap-3">
+                                    {editingDraftId !== item.id && (
+                                      <button 
+                                        onClick={(e) => { 
+                                          e.stopPropagation(); 
+                                          setEditingDraftId(item.id); 
+                                          setEditingDraftData(item); 
+                                          setImportItemId('');
+                                          setImportError('');
+                                        }}
+                                        disabled={item.status === 'processing' || item.status === 'error'}
+                                        className={`p-2 glass rounded-lg transition-all flex items-center gap-2 text-xs font-semibold border border-white/5 ${
+                                          (item.status === 'processing' || item.status === 'error')
+                                            ? 'opacity-50 cursor-not-allowed'
+                                            : 'hover:bg-emerald-500/20 hover:text-emerald-400 cursor-pointer'
+                                        }`}
+                                      >
+                                        <Edit3 size={16} />
+                                        Edit Details
+                                      </button>
+                                    )}
                                     <button 
                                       onClick={(e) => { e.stopPropagation(); copyToClipboard(item); }}
                                       disabled={item.status === 'processing' || item.status === 'error'}
@@ -954,59 +1019,230 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                                     </div>
                                   )}
 
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <div className="space-y-4">
-                                      <div>
-                                        <h5 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">1. TITLE</h5>
-                                        <p className="text-sm text-slate-200 glass p-3 rounded-lg border-blue-500/20 border-l-2 leading-relaxed">{item.title}</p>
+                                  {editingDraftId === item.id ? (
+                                    <div className="space-y-6 p-5 rounded-xl bg-blue-500/5 border border-blue-500/10">
+                                      <div className="flex justify-between items-center pb-2 border-b border-white/5">
+                                        <h4 className="text-xs font-bold text-blue-400 uppercase tracking-widest">Import Comps & Edit Draft Details</h4>
+                                        <button 
+                                          onClick={() => setEditingDraftId(null)}
+                                          className="text-slate-400 hover:text-white text-xs cursor-pointer"
+                                        >
+                                          Cancel
+                                        </button>
                                       </div>
-                                      <div>
-                                        <h5 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">2. CONDITION</h5>
-                                        <p className="text-sm text-slate-300 italic">"{item.condition}"</p>
-                                      </div>
-                                      <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                          <h5 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">3. MATERIAL</h5>
-                                          <p className="text-sm text-slate-300">{item.material}</p>
-                                        </div>
-                                        <div>
-                                          <h5 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">4. WEIGHT</h5>
-                                          <p className="text-sm text-slate-300">{item.weight} lbs</p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div className="space-y-4">
-                                      <div>
-                                        <h5 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">6. STYLE DETAILS</h5>
-                                        <p className="text-sm text-slate-300 leading-relaxed">{item.style_details}</p>
-                                      </div>
-                                      <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                          <h5 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">7. COUNTRY</h5>
-                                          <p className="text-sm text-slate-300">{item.country_of_origin}</p>
-                                        </div>
-                                        <div>
-                                          <h5 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">8. AGE</h5>
-                                          <p className="text-sm text-slate-300">{item.age}</p>
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <h5 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">9. RETAIL PRICE</h5>
-                                        <div className="flex items-center gap-3">
-                                          <p className="text-lg font-bold text-green-400">{item.retail_price}</p>
-                                          <a 
-                                            href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent((item.brand || '') + ' ' + item.title)}&LH_Sold=1&LH_Complete=1`}
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="text-xs text-blue-400 hover:text-white hover:underline flex items-center gap-1 font-semibold"
+
+                                      {/* Sold Comps Import Row */}
+                                      <div className="glass p-4 rounded-lg border border-white/5 space-y-3">
+                                        <label className="text-[10px] uppercase tracking-widest text-slate-400 font-bold block">Import aspects from eBay sold comp</label>
+                                        <div className="flex gap-2">
+                                          <input 
+                                            type="text"
+                                            className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 outline-none text-xs flex-grow focus:border-blue-500/50 text-slate-200"
+                                            placeholder="Paste eBay Item ID here (e.g. 306983676601)..."
+                                            value={importItemId}
+                                            onChange={(e) => setImportItemId(e.target.value)}
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => handleImportComps(item.id)}
+                                            disabled={isImporting}
+                                            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                           >
-                                            <ExternalLink size={12} />
-                                            Search Sold Comps
-                                          </a>
+                                            {isImporting ? <RefreshCw size={12} className="animate-spin" /> : <Layers size={12} />}
+                                            Import Specs
+                                          </button>
+                                        </div>
+                                        {importError && <p className="text-[10px] text-red-400 font-semibold mt-1">{importError}</p>}
+                                      </div>
+
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-4">
+                                          <div>
+                                            <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-1">1. Title</label>
+                                            <textarea 
+                                              rows={2}
+                                              className="w-full bg-black/40 border border-white/10 rounded-lg p-3 outline-none text-sm text-slate-200 focus:border-blue-500/50 leading-relaxed font-sans"
+                                              value={editingDraftData.title || ''}
+                                              onChange={(e) => setEditingDraftData({...editingDraftData, title: e.target.value})}
+                                            />
+                                          </div>
+                                          <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                              <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-1">Brand</label>
+                                              <input 
+                                                type="text"
+                                                className="w-full bg-black/40 border border-white/10 rounded-lg p-3 outline-none text-sm text-slate-200 focus:border-blue-500/50"
+                                                value={editingDraftData.brand || ''}
+                                                onChange={(e) => setEditingDraftData({...editingDraftData, brand: e.target.value})}
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-1">Size</label>
+                                              <input 
+                                                type="text"
+                                                className="w-full bg-black/40 border border-white/10 rounded-lg p-3 outline-none text-sm text-slate-200 focus:border-blue-500/50"
+                                                value={editingDraftData.size || ''}
+                                                onChange={(e) => setEditingDraftData({...editingDraftData, size: e.target.value})}
+                                              />
+                                            </div>
+                                          </div>
+                                          <div>
+                                            <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-1">2. Condition</label>
+                                            <textarea 
+                                              rows={2}
+                                              className="w-full bg-black/40 border border-white/10 rounded-lg p-3 outline-none text-sm text-slate-200 focus:border-blue-500/50 font-sans"
+                                              value={editingDraftData.condition || ''}
+                                              onChange={(e) => setEditingDraftData({...editingDraftData, condition: e.target.value})}
+                                            />
+                                          </div>
+                                          <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                              <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-1">3. Material</label>
+                                              <input 
+                                                type="text"
+                                                className="w-full bg-black/40 border border-white/10 rounded-lg p-3 outline-none text-sm text-slate-200 focus:border-blue-500/50"
+                                                value={editingDraftData.material || ''}
+                                                onChange={(e) => setEditingDraftData({...editingDraftData, material: e.target.value})}
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-1">4. Weight (lbs)</label>
+                                              <input 
+                                                type="text"
+                                                className="w-full bg-black/40 border border-white/10 rounded-lg p-3 outline-none text-sm text-slate-200 focus:border-blue-500/50"
+                                                value={editingDraftData.weight || ''}
+                                                onChange={(e) => setEditingDraftData({...editingDraftData, weight: e.target.value})}
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                          <div>
+                                            <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-1">6. Style Details & Aspects</label>
+                                            <textarea 
+                                              rows={4}
+                                              className="w-full bg-black/40 border border-white/10 rounded-lg p-3 outline-none text-sm text-slate-200 focus:border-blue-500/50 leading-relaxed font-sans"
+                                              value={editingDraftData.style_details || ''}
+                                              onChange={(e) => setEditingDraftData({...editingDraftData, style_details: e.target.value})}
+                                            />
+                                          </div>
+                                          <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                              <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-1">7. Country</label>
+                                              <input 
+                                                type="text"
+                                                className="w-full bg-black/40 border border-white/10 rounded-lg p-3 outline-none text-sm text-slate-200 focus:border-blue-500/50"
+                                                value={editingDraftData.country_of_origin || ''}
+                                                onChange={(e) => setEditingDraftData({...editingDraftData, country_of_origin: e.target.value})}
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-1">8. Age</label>
+                                              <input 
+                                                type="text"
+                                                className="w-full bg-black/40 border border-white/10 rounded-lg p-3 outline-none text-sm text-slate-200 focus:border-blue-500/50"
+                                                value={editingDraftData.age || ''}
+                                                onChange={(e) => setEditingDraftData({...editingDraftData, age: e.target.value})}
+                                              />
+                                            </div>
+                                          </div>
+                                          <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                              <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-1">9. Resale Price</label>
+                                              <input 
+                                                type="text"
+                                                className="w-full bg-black/40 border border-white/10 rounded-lg p-3 outline-none text-sm text-slate-200 focus:border-blue-500/50 font-sans"
+                                                value={editingDraftData.retail_price || ''}
+                                                onChange={(e) => setEditingDraftData({...editingDraftData, retail_price: e.target.value})}
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-1">Category</label>
+                                              <input 
+                                                type="text"
+                                                className="w-full bg-black/40 border border-white/10 rounded-lg p-3 outline-none text-sm text-slate-200 focus:border-blue-500/50"
+                                                value={editingDraftData.category || ''}
+                                                onChange={(e) => setEditingDraftData({...editingDraftData, category: e.target.value})}
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
+                                        <button 
+                                          type="button"
+                                          onClick={() => setEditingDraftId(null)}
+                                          className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white rounded-lg text-xs font-semibold cursor-pointer"
+                                        >
+                                          Cancel
+                                        </button>
+                                        <button 
+                                          type="button"
+                                          onClick={() => handleSaveDraft(item.id)}
+                                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-600/10"
+                                        >
+                                          <Save size={14} />
+                                          Save Changes
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                      <div className="space-y-4">
+                                        <div>
+                                          <h5 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">1. TITLE</h5>
+                                          <p className="text-sm text-slate-200 glass p-3 rounded-lg border-blue-500/20 border-l-2 leading-relaxed">{item.title}</p>
+                                        </div>
+                                        <div>
+                                          <h5 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">2. CONDITION</h5>
+                                          <p className="text-sm text-slate-300 italic">"{item.condition}"</p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                          <div>
+                                            <h5 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">3. MATERIAL</h5>
+                                            <p className="text-sm text-slate-300">{item.material}</p>
+                                          </div>
+                                          <div>
+                                            <h5 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">4. WEIGHT</h5>
+                                            <p className="text-sm text-slate-300">{item.weight} lbs</p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="space-y-4">
+                                        <div>
+                                          <h5 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">6. STYLE DETAILS</h5>
+                                          <p className="text-sm text-slate-300 leading-relaxed">{item.style_details}</p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                          <div>
+                                            <h5 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">7. COUNTRY</h5>
+                                            <p className="text-sm text-slate-300">{item.country_of_origin}</p>
+                                          </div>
+                                          <div>
+                                            <h5 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">8. AGE</h5>
+                                            <p className="text-sm text-slate-300">{item.age}</p>
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <h5 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">9. RETAIL PRICE</h5>
+                                          <div className="flex items-center gap-3">
+                                            <p className="text-lg font-bold text-green-400">{item.retail_price}</p>
+                                            <a 
+                                              href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent((item.brand || '') + ' ' + item.title)}&LH_Sold=1&LH_Complete=1`}
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                              className="text-xs text-blue-400 hover:text-white hover:underline flex items-center gap-1 font-semibold"
+                                            >
+                                              <ExternalLink size={12} />
+                                              Search Sold Comps
+                                            </a>
+                                          </div>
                                         </div>
                                       </div>
                                     </div>
-                                  </div>
+                                  )}
                                 </div>
                               </td>
                             </motion.tr>

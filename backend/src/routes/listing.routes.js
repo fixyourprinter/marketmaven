@@ -268,4 +268,108 @@ router.delete('/items/:id', (req, res) => {
   });
 });
 
+// Update a local item
+router.put('/items/:id', (req, res) => {
+  const { id } = req.params;
+  const {
+    title, brand, size, weight, material, country_of_origin,
+    age, retail_price, etsy_tags, style_details, category, condition
+  } = req.body;
+
+  db.run(
+    `UPDATE items SET 
+      title = ?, brand = ?, size = ?, weight = ?, material = ?, 
+      country_of_origin = ?, age = ?, retail_price = ?, etsy_tags = ?, 
+      style_details = ?, category = ?, condition = ?
+     WHERE id = ?`,
+    [
+      title, brand, size, weight, material, country_of_origin,
+      age, retail_price, etsy_tags, style_details, category, condition,
+      id
+    ],
+    function(err) {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json({ status: 'success', message: 'Item updated successfully' });
+    }
+  );
+});
+
+// Import details from eBay sold/active comp by Item ID
+router.post('/import-comps', async (req, res) => {
+  const { itemId, draftId } = req.body;
+  if (!itemId) {
+    return res.status(400).json({ error: 'Item ID is required' });
+  }
+
+  try {
+    const details = await ebayService.fetchExternalItemDetails(itemId);
+    
+    // Map specifics to local listing fields
+    const specs = details.specifics || {};
+    const brand = specs['Brand'] || '';
+    const size = specs['Size'] || specs["Size (Women's)"] || specs["Size (Men's)"] || specs['Size Type'] || '';
+    const material = specs['Material'] || '';
+    const country = specs['Country/Region of Manufacture'] || '';
+    const style = specs['Style'] || '';
+
+    // Collect all other aspects as comma-separated style details
+    const styleDetailList = [];
+    if (style) styleDetailList.push(`Style: ${style}`);
+    for (const [k, v] of Object.entries(specs)) {
+      if (!['Brand', 'Size', "Size (Women's)", "Size (Men's)", 'Material', 'Country/Region of Manufacture', 'Style'].includes(k)) {
+        styleDetailList.push(`${k}: ${v}`);
+      }
+    }
+    const styleDetails = styleDetailList.join(', ');
+
+    // If draftId is provided, update it in SQLite directly
+    if (draftId) {
+      db.run(
+        `UPDATE items SET 
+          brand = ?,
+          size = ?,
+          material = ?,
+          country_of_origin = ?,
+          style_details = ?
+         WHERE id = ?`,
+        [
+          brand || '',
+          size || '',
+          material || '',
+          country || '',
+          styleDetails || '',
+          draftId
+        ],
+        function(updateErr) {
+          if (updateErr) {
+            console.error(updateErr);
+            return res.status(500).json({ error: 'Failed to update draft with comp details' });
+          }
+          // Fetch the updated item and return it
+          db.get('SELECT * FROM items WHERE id = ?', [draftId], (err, row) => {
+            if (err || !row) {
+              return res.status(500).json({ error: 'Failed to retrieve updated item' });
+            }
+            res.json({ status: 'success', item: row });
+          });
+        }
+      );
+    } else {
+      // Just return the parsed details
+      res.json({
+        brand,
+        size,
+        material,
+        country_of_origin: country,
+        style_details: styleDetails
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

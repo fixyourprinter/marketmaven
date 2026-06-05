@@ -799,6 +799,88 @@ class EbayService {
       return { status: 'error', message: detailMsg };
     }
   }
+
+  async fetchExternalItemDetails(itemId) {
+    if (!this.accessToken) throw new Error('Not authenticated with eBay. Please connect your account first.');
+
+    const tradingUrl = this.isSandbox
+      ? 'https://api.sandbox.ebay.com/ws/api.dll'
+      : 'https://api.ebay.com/ws/api.dll';
+
+    console.log(`[EbayService] Making GetItem call for ItemID ${itemId} to: ${tradingUrl}`);
+
+    const xml = `<?xml version="1.0" encoding="utf-8"?>
+<GetItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+  <ItemID>${itemId}</ItemID>
+  <DetailLevel>ReturnAll</DetailLevel>
+</GetItemRequest>`;
+
+    try {
+      const response = await axios.post(tradingUrl, xml, {
+        headers: {
+          'X-EBAY-API-COMPATIBILITY-LEVEL': '1235',
+          'X-EBAY-API-CALL-NAME': 'GetItem',
+          'X-EBAY-API-SITEID': '0',
+          'X-EBAY-API-IAF-TOKEN': this.accessToken,
+          'Content-Type': 'text/xml'
+        }
+      });
+
+      const data = response.data;
+      if (typeof data !== 'string') {
+        throw new Error('Invalid response from eBay Trading API');
+      }
+
+      const ackMatch = data.match(/<Ack>(.*?)<\/Ack>/);
+      const ack = ackMatch ? ackMatch[1] : '';
+      if (ack !== 'Success' && ack !== 'Warning') {
+        const errorMatch = data.match(/<LongMessage>(.*?)<\/LongMessage>/);
+        const errorMsg = errorMatch ? errorMatch[1] : 'Unknown eBay GetItem error';
+        throw new Error(errorMsg);
+      }
+
+      // Extract title
+      const titleMatch = data.match(/<Title>(.*?)<\/Title>/);
+      const title = titleMatch ? decodeXmlEntities(titleMatch[1].trim()) : '';
+
+      // Extract Description
+      const descMatch = data.match(/<Description>([\s\S]*?)<\/Description>/);
+      const descriptionHtml = descMatch ? descMatch[1].trim() : '';
+      // Strip html tags to get plain text for description
+      const description = descriptionHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+
+      // Extract Item Specifics
+      const specifics = {};
+      const specificsBlockMatch = data.match(/<ItemSpecifics>([\s\S]*?)<\/ItemSpecifics>/);
+      if (specificsBlockMatch) {
+        const block = specificsBlockMatch[1];
+        const regex = /<NameValueList>([\s\S]*?)<\/NameValueList>/g;
+        let match;
+        while ((match = regex.exec(block)) !== null) {
+          const inner = match[1];
+          const nameM = inner.match(/<Name>(.*?)<\/Name>/);
+          const valRegex = /<Value>(.*?)<\/Value>/g;
+          const values = [];
+          let valM;
+          while ((valM = valRegex.exec(inner)) !== null) {
+            values.push(decodeXmlEntities(valM[1].trim()));
+          }
+          if (nameM && values.length > 0) {
+            specifics[nameM[1].trim()] = values.join(', ');
+          }
+        }
+      }
+
+      return {
+        title,
+        description,
+        specifics
+      };
+    } catch (error) {
+      console.error(`[EbayService] GetItem Error for ItemID ${itemId}:`, error.response?.data || error.message);
+      throw error;
+    }
+  }
 }
 
 function decodeXmlEntities(str) {
