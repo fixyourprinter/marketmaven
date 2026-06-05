@@ -9,6 +9,12 @@ import MobileCapture from './pages/MobileCapture';
 
 const API_BASE = '/api';
 
+const initialToken = localStorage.getItem('auth_token');
+if (initialToken) {
+  axios.defaults.headers.common['Authorization'] = `Bearer ${initialToken}`;
+}
+
+
 interface SidebarProps {
   onOpenSettings: () => void;
   onOpenFeedback: () => void;
@@ -724,7 +730,9 @@ function App() {
 
         if (!setupReq && token) {
           try {
-            const meRes = await axios.get(`${API_BASE}/auth/me`);
+            const meRes = await axios.get(`${API_BASE}/auth/me`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
             setUser(meRes.data.user);
           } catch (meErr) {
             // Token is invalid/expired
@@ -820,7 +828,9 @@ function App() {
           username: usernameInput,
           password: passwordInput
         });
-        setToken(res.data.token);
+        const newToken = res.data.token;
+        axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+        setToken(newToken);
         setUser(res.data.user);
         setIsSetupRequired(false);
       } else {
@@ -829,7 +839,9 @@ function App() {
           username: usernameInput,
           password: passwordInput
         });
-        setToken(res.data.token);
+        const newToken = res.data.token;
+        axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+        setToken(newToken);
         setUser(res.data.user);
       }
       setUsernameInput('');
