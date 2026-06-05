@@ -1128,6 +1128,11 @@ function parseItemsFromXml(xml, status) {
     const title = titleMatch ? decodeXmlEntities(titleMatch[1].trim()) : 'Untitled Item';
     const quantity = qtyMatch ? parseInt(qtyMatch[1].trim(), 10) || 0 : 1;
 
+    const startTimeMatch = block.match(/<StartTime>(.*?)<\/StartTime>/);
+    const endTimeMatch = block.match(/<EndTime>(.*?)<\/EndTime>/);
+    const startTime = startTimeMatch ? startTimeMatch[1].trim() : '';
+    const endTime = endTimeMatch ? endTimeMatch[1].trim() : '';
+
     items.push({
       sku: sku,
       listingId: itemId,
@@ -1142,7 +1147,9 @@ function parseItemsFromXml(xml, status) {
         }
       },
       status: status,
-      isTraditional: true
+      isTraditional: true,
+      startTime: startTime,
+      endTime: endTime
     });
   }
   return items;

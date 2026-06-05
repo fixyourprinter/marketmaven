@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Package, Search, Edit2, Trash2, CheckSquare, Square, RefreshCcw, ExternalLink } from 'lucide-react';
+import { Package, Search, Edit2, Trash2, CheckSquare, Square, RefreshCcw, ExternalLink, SlidersHorizontal, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const API_BASE = '/api';
@@ -22,6 +22,8 @@ interface InventoryItem {
   };
   isTraditional?: boolean;
   status?: string;
+  startTime?: string;
+  endTime?: string;
 }
 
 const COMMON_COUNTRIES = [
@@ -58,6 +60,24 @@ const COMMON_SIZES = [
   'One Size', 'N/A'
 ];
 
+const COLUMN_LABELS: Record<string, string> = {
+  sku: 'SKU / Listing ID',
+  qty: 'Quantity',
+  status: 'Status',
+  country: 'Country of Origin',
+  endTime: 'Expiration Date',
+  brand: 'Brand',
+  size: 'Size',
+  material: 'Material',
+  rise: 'Rise',
+  pattern: 'Pattern',
+  fit: 'Fit',
+  closure: 'Closure',
+  type: 'Type',
+  department: 'Department',
+  color: 'Color',
+};
+
 const EbayInventory: React.FC = () => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,6 +98,27 @@ const EbayInventory: React.FC = () => {
   const [isDiagnosing, setIsDiagnosing] = useState(false);
   const [diagnosedItems, setDiagnosedItems] = useState<any[]>([]);
   const [bulkProgress, setBulkProgress] = useState<string | null>(null);
+
+  const [showColumnDropdown, setShowColumnDropdown] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
+    sku: true,
+    qty: true,
+    status: true,
+    country: true,
+    endTime: true,
+    brand: false,
+    size: false,
+    material: false,
+    rise: false,
+    pattern: false,
+    fit: false,
+    closure: false,
+    type: false,
+    department: false,
+    color: false,
+  });
+  const [sortField, setSortField] = useState<string>('');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const fetchInventory = async () => {
     setLoading(true);
@@ -119,16 +160,89 @@ const EbayInventory: React.FC = () => {
   };
 
   const filteredItems = items.filter(item => {
-    const title = item.product?.title || '';
-    const sku = item.sku || '';
-    const brand = item.product?.aspects?.Brand?.[0] || '';
-    const country = item.product?.aspects?.['Country/Region of Manufacture']?.[0] || '';
-    
     const searchLower = searchTerm.toLowerCase();
-    return title.toLowerCase().includes(searchLower) ||
-           sku.toLowerCase().includes(searchLower) ||
-           brand.toLowerCase().includes(searchLower) ||
-           country.toLowerCase().includes(searchLower);
+    if (!searchLower) return true;
+
+    const title = (item.product?.title || '').toLowerCase();
+    const sku = (item.sku || '').toLowerCase();
+    const listingId = (item.listingId || '').toLowerCase();
+    const condition = (item.condition || '').toLowerCase();
+    const status = (item.status || '').toLowerCase();
+    
+    let endTimeStr = 'gtc';
+    if (item.endTime) {
+      endTimeStr = new Date(item.endTime).toLocaleDateString().toLowerCase();
+    } else if (item.isTraditional) {
+      endTimeStr = 'n/a';
+    }
+
+    if (title.includes(searchLower) || 
+        sku.includes(searchLower) || 
+        listingId.includes(searchLower) || 
+        condition.includes(searchLower) || 
+        status.includes(searchLower) ||
+        endTimeStr.includes(searchLower)) {
+      return true;
+    }
+
+    if (item.product?.aspects) {
+      for (const values of Object.values(item.product.aspects)) {
+        if (values && values.some(v => String(v).toLowerCase().includes(searchLower))) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  });
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedItems = [...filteredItems].sort((a, b) => {
+    if (!sortField) return 0;
+
+    let valA: string | number = '';
+    let valB: string | number = '';
+
+    if (sortField === 'sku') {
+      valA = a.sku || '';
+      valB = b.sku || '';
+    } else if (sortField === 'qty') {
+      valA = a.availability?.shipToLocationAvailability?.quantity ?? 0;
+      valB = b.availability?.shipToLocationAvailability?.quantity ?? 0;
+    } else if (sortField === 'status') {
+      valA = a.status || '';
+      valB = b.status || '';
+    } else if (sortField === 'endTime') {
+      valA = a.endTime || '';
+      valB = b.endTime || '';
+    } else {
+      let aspectKey = sortField;
+      if (sortField === 'country') {
+        aspectKey = 'Country/Region of Manufacture';
+      } else {
+        aspectKey = sortField.charAt(0).toUpperCase() + sortField.slice(1);
+      }
+      valA = a.product?.aspects?.[aspectKey]?.[0] || '';
+      valB = b.product?.aspects?.[aspectKey]?.[0] || '';
+    }
+
+    if (typeof valA === 'string' && typeof valB === 'string') {
+      return sortDirection === 'asc' 
+        ? valA.localeCompare(valB) 
+        : valB.localeCompare(valA);
+    } else {
+      return sortDirection === 'asc' 
+        ? (valA as number) - (valB as number) 
+        : (valB as number) - (valA as number);
+    }
   });
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -1108,12 +1222,61 @@ const EbayInventory: React.FC = () => {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
             <input 
               type="text" 
-              placeholder="Filter by title, brand, or SKU..."
+              placeholder="Filter by title, aspects, condition, or SKU..."
               className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:border-[#B9735D]/50 outline-none transition-all font-sans"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+
+          {/* Columns Selector Dropdown */}
+          <div className="relative flex-shrink-0">
+            <button
+              onClick={() => setShowColumnDropdown(!showColumnDropdown)}
+              className="px-5 py-3 glass rounded-xl hover:text-blue-400 transition-all flex items-center gap-2 text-sm font-semibold h-full border border-white/10"
+            >
+              <SlidersHorizontal size={18} />
+              <span>Columns</span>
+            </button>
+            <AnimatePresence>
+              {showColumnDropdown && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowColumnDropdown(false)} />
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute right-0 mt-2 w-64 bg-[#151a18] border border-white/10 rounded-xl shadow-2xl p-4 z-50 space-y-2 max-h-80 overflow-y-auto text-left"
+                  >
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-white/5 pb-2 mb-2">Configure Columns</h4>
+                    {Object.entries(COLUMN_LABELS).map(([colId, label]) => (
+                      <button
+                        key={colId}
+                        type="button"
+                        onClick={() => {
+                          setVisibleColumns({
+                            ...visibleColumns,
+                            [colId]: !visibleColumns[colId]
+                          });
+                        }}
+                        className="flex items-center gap-3 w-full text-left p-1.5 rounded hover:bg-white/5 transition-all text-xs font-medium text-slate-300"
+                      >
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
+                          visibleColumns[colId] 
+                            ? 'bg-[#B9735D] border-[#B9735D] text-white' 
+                            : 'border-white/20'
+                        }`}>
+                          {visibleColumns[colId] && <span className="text-[10px] font-bold">✓</span>}
+                        </div>
+                        <span>{label}</span>
+                      </button>
+                    ))}
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+
           {selectedSkus.size > 0 && (
             <motion.div 
               initial={{ opacity: 0, scale: 0.9 }}
@@ -1140,15 +1303,34 @@ const EbayInventory: React.FC = () => {
                   </button>
                 </th>
                 <th className="pb-4">Product Info & Aspects</th>
-                <th className="pb-4">SKU / ID</th>
-                <th className="pb-4 text-center">Qty</th>
-                <th className="pb-4 text-center">Status</th>
+                
+                {/* Dynamic Columns Headers */}
+                {Object.entries(visibleColumns).map(([colId, visible]) => {
+                  if (!visible) return null;
+                  const isCentered = ['qty', 'status', 'endTime'].includes(colId);
+                  return (
+                    <th key={colId} className={`pb-4 ${isCentered ? 'text-center' : ''}`}>
+                      <button 
+                        onClick={() => handleSort(colId)}
+                        className={`flex items-center gap-1 hover:text-slate-300 font-bold uppercase tracking-widest text-[10px] transition-colors ${isCentered ? 'mx-auto' : ''}`}
+                      >
+                        <span>{COLUMN_LABELS[colId]}</span>
+                        {sortField === colId ? (
+                          sortDirection === 'asc' ? <ArrowUp size={12} className="text-blue-400" /> : <ArrowDown size={12} className="text-blue-400" />
+                        ) : (
+                          <ArrowUpDown size={12} className="opacity-30" />
+                        )}
+                      </button>
+                    </th>
+                  );
+                })}
+
                 <th className="pb-4 text-right pr-4">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               <AnimatePresence>
-                {filteredItems.map((item) => (
+                {sortedItems.map((item) => (
                   <React.Fragment key={item.sku}>
                     <motion.tr 
                       initial={{ opacity: 0 }}
@@ -1197,41 +1379,99 @@ const EbayInventory: React.FC = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="py-6">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-xs font-mono font-bold text-slate-500 bg-white/5 px-2 py-1 rounded border border-white/5 w-fit">{item.sku}</span>
-                          {item.listingId && (
-                            <span className="text-[10px] font-mono font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20 w-fit">ID: {item.listingId}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-6 text-center">
-                        <div className={`w-8 h-8 rounded-lg mx-auto flex items-center justify-center text-sm font-bold border ${(item.availability?.shipToLocationAvailability?.quantity ?? 0) < 1 ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-slate-800 text-slate-200 border-white/5'}`}>
-                          {item.availability?.shipToLocationAvailability?.quantity ?? 0}
-                        </div>
-                      </td>
-                      <td className="py-6 text-center">
-                        <div className="flex flex-col gap-1 items-center justify-center">
-                          {item.status === 'scheduled' ? (
-                            <span className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
-                              SCHEDULED
-                            </span>
-                          ) : item.status === 'draft' ? (
-                            <span className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-slate-800 text-slate-500 border border-white/5">
-                              DRAFT
-                            </span>
-                          ) : (
-                            <span className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-green-500/10 text-green-500 border border-green-500/20">
-                              LIVE
-                            </span>
-                          )}
-                          {item.isTraditional && (
-                            <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                              Traditional
-                            </span>
-                          )}
-                        </div>
-                      </td>
+                      
+                      {/* Dynamic Columns Cell Rendering */}
+                      {Object.entries(visibleColumns).map(([colId, visible]) => {
+                        if (!visible) return null;
+                        
+                        if (colId === 'sku') {
+                          return (
+                            <td key={colId} className="py-6">
+                              <div className="flex flex-col gap-1">
+                                <span className="text-xs font-mono font-bold text-slate-500 bg-white/5 px-2 py-1 rounded border border-white/5 w-fit">{item.sku}</span>
+                                {item.listingId && (
+                                  <span className="text-[10px] font-mono font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20 w-fit">ID: {item.listingId}</span>
+                                )}
+                              </div>
+                            </td>
+                          );
+                        }
+                        
+                        if (colId === 'qty') {
+                          return (
+                            <td key={colId} className="py-6 text-center">
+                              <div className={`w-8 h-8 rounded-lg mx-auto flex items-center justify-center text-sm font-bold border ${(item.availability?.shipToLocationAvailability?.quantity ?? 0) < 1 ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-slate-800 text-slate-200 border-white/5'}`}>
+                                {item.availability?.shipToLocationAvailability?.quantity ?? 0}
+                              </div>
+                            </td>
+                          );
+                        }
+                        
+                        if (colId === 'status') {
+                          return (
+                            <td key={colId} className="py-6 text-center">
+                              <div className="flex flex-col gap-1 items-center justify-center">
+                                {item.status === 'scheduled' ? (
+                                  <span className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
+                                    SCHEDULED
+                                  </span>
+                                ) : item.status === 'draft' ? (
+                                  <span className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-slate-800 text-slate-500 border border-white/5">
+                                    DRAFT
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-green-500/10 text-green-500 border border-green-500/20">
+                                    LIVE
+                                  </span>
+                                )}
+                                {item.isTraditional && (
+                                  <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                    Traditional
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          );
+                        }
+                        
+                        if (colId === 'country') {
+                          const val = item.product?.aspects?.['Country/Region of Manufacture']?.[0] || '-';
+                          return (
+                            <td key={colId} className="py-6 text-slate-300 text-xs font-semibold">
+                              {val}
+                            </td>
+                          );
+                        }
+                        
+                        if (colId === 'endTime') {
+                          let display = 'GTC';
+                          if (item.endTime) {
+                            display = new Date(item.endTime).toLocaleDateString();
+                          } else if (item.isTraditional) {
+                            display = 'N/A';
+                          }
+                          return (
+                            <td key={colId} className="py-6 text-center text-slate-300 text-xs font-semibold font-mono">
+                              {display}
+                            </td>
+                          );
+                        }
+                        
+                        // It is an aspect column
+                        let aspectKey = colId;
+                        if (colId === 'country') {
+                          aspectKey = 'Country/Region of Manufacture';
+                        } else {
+                          aspectKey = colId.charAt(0).toUpperCase() + colId.slice(1);
+                        }
+                        const val = item.product?.aspects?.[aspectKey]?.[0] || '-';
+                        return (
+                          <td key={colId} className="py-6 text-slate-300 text-xs font-semibold">
+                            {val}
+                          </td>
+                        );
+                      })}
+
                       <td className="py-6 text-right pr-4 rounded-r-xl">
                         <div className="flex justify-end gap-2">
                            <button 
@@ -1257,7 +1497,7 @@ const EbayInventory: React.FC = () => {
                         animate={{ opacity: 1, height: 'auto' }}
                         className="bg-black/30"
                       >
-                        <td colSpan={6} className="p-8 border-b border-white/5">
+                        <td colSpan={3 + Object.values(visibleColumns).filter(Boolean).length} className="p-8 border-b border-white/5">
                           <div className="grid grid-cols-3 gap-12">
                              <div className="col-span-2 space-y-4">
                                <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Full Title & Details</h5>
