@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Package, Scale, Tag, ExternalLink, CheckCircle2, Clock, Camera, Copy, Trash2, ChevronRight, Layers, Ruler, Sparkles, Plus, X, RefreshCw, MessageSquare } from 'lucide-react';
+import { Package, Scale, Tag, ExternalLink, CheckCircle2, Clock, Camera, Copy, Trash2, ChevronRight, Layers, Sparkles, Plus, X, RefreshCw, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 
@@ -31,7 +31,7 @@ const AI_STATUS_MESSAGES = [
   "Uploading high-resolution captures...",
   "Analyzing cover photo and silhouette...",
   "Scanning size labels and tags...",
-  "Reading ruler/yardstick markings...",
+  "Reading SKU & shipping scale weight...",
   "Analyzing condition details...",
   "Generating descriptive listing title...",
   "Drafting final listing description..."
@@ -535,7 +535,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                       <img src={URL.createObjectURL(step1Images.measurements)} alt="" className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-slate-200 truncate">3. Ruler / Measurements</p>
+                      <p className="text-xs font-bold text-slate-200 truncate">3. SKU & Weight</p>
                       <p className="text-[10px] text-slate-500 truncate">{step1Images.measurements.name}</p>
                     </div>
                     <button 
@@ -551,11 +551,11 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                     className="w-full flex items-center gap-3 p-3.5 border border-dashed border-white/10 hover:border-blue-500/30 bg-white/[0.01] hover:bg-white/[0.03] rounded-xl text-left transition-all group cursor-pointer"
                   >
                     <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0 border border-blue-500/20 group-hover:scale-105 transition-transform">
-                      <Ruler className="text-blue-400" size={16} />
+                      <Scale className="text-blue-400" size={16} />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-200">3. Ruler / Measurements</p>
-                      <p className="text-[9px] text-slate-500 mt-0.5">Laid flat next to scale</p>
+                      <p className="text-xs font-bold text-slate-200">3. SKU & Weight</p>
+                      <p className="text-[9px] text-slate-500 mt-0.5">Barcode SKU & shipping scale shot</p>
                     </div>
                   </button>
                 )}

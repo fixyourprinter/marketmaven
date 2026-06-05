@@ -12,8 +12,8 @@ import {
   RefreshCw,
   Package,
   Layers,
-  Ruler,
   Tag,
+  Scale,
   MessageSquare,
   History
 } from 'lucide-react';
@@ -30,7 +30,7 @@ const AI_STATUS_MESSAGES = [
   "Uploading high-resolution captures...",
   "Analyzing cover photo and garment silhouette...",
   "Scanning brand label and size tag markings...",
-  "Reading ruler/yardstick measurement alignments...",
+  "Reading SKU & shipping scale weight...",
   "Extracting fabric material composition...",
   "Analyzing condition details and aesthetics...",
   "Generating descriptive listing title...",
@@ -430,7 +430,7 @@ export default function MobileCapture({ onOpenFeedback, onOpenVersionNotes }: Mo
                 )}
               </div>
 
-              {/* Slot 3: Ruler / Measurements */}
+              {/* Slot 3: SKU & Weight */}
               <div className="relative">
                 {step1Images.measurements ? (
                   <div className="relative h-44 rounded-xl border border-slate-800 overflow-hidden bg-slate-900 group">
@@ -440,9 +440,9 @@ export default function MobileCapture({ onOpenFeedback, onOpenVersionNotes }: Mo
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-3.5 flex items-end justify-between">
-                      <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                        <Ruler size={14} className="text-blue-400" />
-                        3. Measurements / Ruler
+                      <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                        <Scale size={14} className="text-blue-400" />
+                        3. SKU & Weight
                       </span>
                       <button 
                         onClick={() => removeImage('measurements')}
@@ -455,13 +455,13 @@ export default function MobileCapture({ onOpenFeedback, onOpenVersionNotes }: Mo
                 ) : (
                   <button 
                     onClick={() => triggerCamera('measurements')}
-                    className="w-full h-40 border-2 border-dashed border-slate-800 hover:border-blue-500/50 bg-slate-900/40 hover:bg-slate-900/80 rounded-xl flex flex-col items-center justify-center p-4 transition-all group"
+                    className="w-full h-40 border-2 border-dashed border-slate-800 hover:border-blue-500/50 bg-slate-900/40 hover:bg-slate-900/80 rounded-xl flex flex-col items-center justify-center p-4 transition-all group cursor-pointer"
                   >
                     <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
-                      <Ruler className="text-blue-400" size={24} />
+                      <Scale className="text-blue-400" size={24} />
                     </div>
-                    <span className="text-sm font-bold text-slate-200">3. Ruler / Measurements</span>
-                    <span className="text-xs text-slate-500 mt-1">Item laid flat with clear measurements visible</span>
+                    <span className="text-sm font-bold text-slate-200">3. SKU & Weight</span>
+                    <span className="text-xs text-slate-500 mt-1 font-sans">Barcode SKU and shipping scale reading</span>
                   </button>
                 )}
               </div>
