@@ -518,13 +518,13 @@ const EbayInventory: React.FC = () => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-2xl bg-[#0f0f12] border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+              className="relative w-full max-w-2xl bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden"
             >
-              <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
+              <div className="p-6 border-b border-slate-900 flex justify-between items-center bg-slate-900/15">
                 <h3 className="text-xl font-bold">
                   {isBulkEdit ? `Bulk Edit (${selectedSkus.size} items)` : `Edit SKU: ${editingItem.sku}`}
                 </h3>
-                <button onClick={() => setIsEditModalOpen(false)} className="text-slate-400 hover:text-white">
+                <button onClick={() => setIsEditModalOpen(false)} className="text-slate-400 hover:text-slate-100">
                    &times;
                 </button>
               </div>
@@ -533,7 +533,7 @@ const EbayInventory: React.FC = () => {
                   <div>
                     <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2">Title</label>
                     <input 
-                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50"
+                      className="w-full bg-slate-900/40 border border-slate-800 rounded-lg p-3 outline-none focus:border-blue-500/50"
                       value={editingItem.product?.title || ''}
                       onChange={(e) => setEditingItem({...editingItem, product: {...editingItem.product, title: e.target.value}})}
                     />
@@ -543,7 +543,7 @@ const EbayInventory: React.FC = () => {
                   <div>
                     <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2">Brand</label>
                     <input 
-                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50"
+                      className="w-full bg-slate-900/40 border border-slate-800 rounded-lg p-3 outline-none focus:border-blue-500/50"
                       placeholder={isBulkEdit ? "New brand for all..." : ""}
                       value={editingItem.product?.aspects?.Brand?.[0] || ''}
                       onChange={(e) => setEditingItem({
@@ -561,14 +561,14 @@ const EbayInventory: React.FC = () => {
                       <button 
                         type="button"
                         onClick={() => setCustomSizeMode(!customSizeMode)}
-                        className="text-[10px] text-blue-400 hover:text-white font-semibold transition-colors cursor-pointer"
+                        className="text-[10px] text-blue-400 hover:text-slate-100 font-semibold transition-colors cursor-pointer"
                       >
                         {customSizeMode ? "Choose from List" : "Type manually"}
                       </button>
                     </div>
                     {customSizeMode ? (
                       <input 
-                        className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                        className="w-full bg-slate-900/40 border border-slate-800 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
                         placeholder={isBulkEdit ? "New size for all..." : "Type size manually..."}
                         value={editingItem.product?.aspects?.Size?.[0] || ''}
                         onChange={(e) => setEditingItem({
@@ -584,7 +584,7 @@ const EbayInventory: React.FC = () => {
                       />
                     ) : (
                       <select
-                        className="w-full bg-[#151a18] border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
                         value={editingItem.product?.aspects?.Size?.[0] || ''}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -621,14 +621,14 @@ const EbayInventory: React.FC = () => {
                       <button 
                         type="button"
                         onClick={() => setCustomCountryMode(!customCountryMode)}
-                        className="text-[10px] text-blue-400 hover:text-white font-semibold transition-colors cursor-pointer"
+                        className="text-[10px] text-blue-400 hover:text-slate-100 font-semibold transition-colors cursor-pointer"
                       >
                         {customCountryMode ? "Choose from List" : "Type manually"}
                       </button>
                     </div>
                     {customCountryMode ? (
                       <input 
-                        className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                        className="w-full bg-slate-900/40 border border-slate-800 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
                         placeholder={isBulkEdit ? "New country for all..." : "Type country of origin manually..."}
                         value={editingItem.product?.aspects?.['Country/Region of Manufacture']?.[0] || ''}
                         onChange={(e) => setEditingItem({
@@ -644,7 +644,7 @@ const EbayInventory: React.FC = () => {
                       />
                     ) : (
                       <select
-                        className="w-full bg-[#151a18] border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
                         value={editingItem.product?.aspects?.['Country/Region of Manufacture']?.[0] || ''}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -678,7 +678,7 @@ const EbayInventory: React.FC = () => {
                   <div>
                     <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2 font-sans">Material</label>
                     <input 
-                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                      className="w-full bg-slate-900/40 border border-slate-800 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
                       value={editingItem.product?.aspects?.Material?.[0] || ''}
                       onChange={(e) => setEditingItem({
                         ...editingItem,
@@ -695,7 +695,7 @@ const EbayInventory: React.FC = () => {
                   <div>
                     <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2 font-sans">Rise</label>
                     <input 
-                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                      className="w-full bg-slate-900/40 border border-slate-800 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
                       value={editingItem.product?.aspects?.Rise?.[0] || ''}
                       onChange={(e) => setEditingItem({
                         ...editingItem,
@@ -715,7 +715,7 @@ const EbayInventory: React.FC = () => {
                   <div>
                     <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2 font-sans">Pattern</label>
                     <input 
-                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                      className="w-full bg-slate-900/40 border border-slate-800 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
                       value={editingItem.product?.aspects?.Pattern?.[0] || ''}
                       onChange={(e) => setEditingItem({
                         ...editingItem,
@@ -732,7 +732,7 @@ const EbayInventory: React.FC = () => {
                   <div>
                     <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2 font-sans">Fit</label>
                     <input 
-                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                      className="w-full bg-slate-900/40 border border-slate-800 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
                       value={editingItem.product?.aspects?.Fit?.[0] || ''}
                       onChange={(e) => setEditingItem({
                         ...editingItem,
@@ -749,7 +749,7 @@ const EbayInventory: React.FC = () => {
                   <div>
                     <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2 font-sans">Closure</label>
                     <input 
-                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                      className="w-full bg-slate-900/40 border border-slate-800 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
                       value={editingItem.product?.aspects?.Closure?.[0] || ''}
                       onChange={(e) => setEditingItem({
                         ...editingItem,
@@ -769,7 +769,7 @@ const EbayInventory: React.FC = () => {
                   <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2 font-sans">Quantity</label>
                   <input 
                     type="number"
-                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                    className="w-full bg-slate-900/40 border border-slate-800 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
                     value={editingItem.availability?.shipToLocationAvailability?.quantity ?? 1}
                     onChange={(e) => setEditingItem({
                       ...editingItem,
@@ -781,7 +781,7 @@ const EbayInventory: React.FC = () => {
                   />
                 </div>
               </div>
-              <div className="p-6 border-t border-white/5 bg-white/5 flex justify-end gap-4">
+              <div className="p-6 border-t border-slate-900 bg-slate-900/15 flex justify-end gap-4">
                 <button 
                   onClick={() => setIsEditModalOpen(false)}
                   className="px-6 py-2 glass rounded-xl hover:bg-white/10"
@@ -815,9 +815,9 @@ const EbayInventory: React.FC = () => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-4xl bg-[#0f0f12] border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+              className="relative w-full max-w-4xl bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden"
             >
-              <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
+              <div className="p-6 border-b border-slate-900 flex justify-between items-center bg-slate-900/15">
                 <div>
                   <h3 className="text-xl font-bold flex items-center gap-2">
                     <span>Bulk Actions / Repair</span>
@@ -829,22 +829,22 @@ const EbayInventory: React.FC = () => {
                 <button 
                   disabled={isDiagnosing}
                   onClick={() => setIsBulkModalOpen(false)} 
-                  className="text-slate-400 hover:text-white disabled:opacity-20"
+                  className="text-slate-400 hover:text-slate-100 disabled:opacity-20"
                 >
                    &times;
                 </button>
               </div>
 
               {/* Tabs */}
-              <div className="flex border-b border-white/5 bg-white/5">
+              <div className="flex border-b border-slate-900 bg-slate-900/10">
                 <button
                   type="button"
                   disabled={isDiagnosing}
                   onClick={() => setBulkActionTab('manual')}
                   className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-all ${
                     bulkActionTab === 'manual' 
-                      ? 'border-blue-500 text-white bg-white/[0.02]' 
-                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                      ? 'border-blue-500 text-slate-100 bg-slate-900/10' 
+                      : 'border-transparent text-slate-400 hover:text-slate-100'
                   }`}
                 >
                   Manual Bulk Edit
@@ -855,8 +855,8 @@ const EbayInventory: React.FC = () => {
                   onClick={() => setBulkActionTab('ai')}
                   className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-all ${
                     bulkActionTab === 'ai' 
-                      ? 'border-blue-500 text-white bg-white/[0.02]' 
-                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                      ? 'border-blue-500 text-slate-100 bg-slate-900/10' 
+                      : 'border-transparent text-slate-400 hover:text-slate-100'
                   }`}
                 >
                   AI Auto-Repair
@@ -1217,13 +1217,13 @@ const EbayInventory: React.FC = () => {
       </div>
 
       <div className="glass-card">
-        <div className="flex gap-4 p-6 border-b border-white/5">
+        <div className="flex gap-4 p-6 border-b border-slate-900">
           <div className="flex-1 relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
             <input 
               type="text" 
               placeholder="Filter by title, aspects, condition, or SKU..."
-              className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:border-blue-500/50 outline-none transition-all font-sans"
+              className="w-full pl-12 pr-4 py-3 bg-slate-900/40 border border-slate-800 rounded-xl focus:border-blue-500/50 outline-none transition-all font-sans text-slate-200"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -1233,7 +1233,7 @@ const EbayInventory: React.FC = () => {
           <div className="relative flex-shrink-0">
             <button
               onClick={() => setShowColumnDropdown(!showColumnDropdown)}
-              className="px-5 py-3 glass rounded-xl hover:text-blue-400 transition-all flex items-center gap-2 text-sm font-semibold h-full border border-white/10"
+              className="px-5 py-3 glass rounded-xl hover:text-blue-400 transition-all flex items-center gap-2 text-sm font-semibold h-full border border-slate-800"
             >
               <SlidersHorizontal size={18} />
               <span>Columns</span>
@@ -1246,9 +1246,9 @@ const EbayInventory: React.FC = () => {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
-                    className="absolute right-0 mt-2 w-64 bg-[#151a18] border border-white/10 rounded-xl shadow-2xl p-4 z-50 space-y-2 max-h-80 overflow-y-auto text-left"
+                    className="absolute right-0 mt-2 w-64 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-4 z-50 space-y-2 max-h-80 overflow-y-auto text-left"
                   >
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-white/5 pb-2 mb-2">Configure Columns</h4>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-800 pb-2 mb-2">Configure Columns</h4>
                     {Object.entries(COLUMN_LABELS).map(([colId, label]) => (
                       <button
                         key={colId}
@@ -1259,7 +1259,7 @@ const EbayInventory: React.FC = () => {
                             [colId]: !visibleColumns[colId]
                           });
                         }}
-                        className="flex items-center gap-3 w-full text-left p-1.5 rounded hover:bg-white/5 transition-all text-xs font-medium text-slate-300"
+                        className="flex items-center gap-3 w-full text-left p-1.5 rounded hover:bg-slate-900/10 transition-all text-xs font-medium text-slate-300"
                       >
                         <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
                           visibleColumns[colId] 
@@ -1336,7 +1336,7 @@ const EbayInventory: React.FC = () => {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       onClick={() => setExpandedSku(expandedSku === item.sku ? null : item.sku)}
-                      className={`group hover:bg-white/[0.04] transition-all cursor-pointer ${selectedSkus.has(item.sku) ? 'bg-blue-500/5 ring-1 ring-blue-500/20' : 'bg-white/[0.01]'}`}
+                      className={`group hover:bg-slate-900/10 transition-all cursor-pointer ${selectedSkus.has(item.sku) ? 'bg-blue-500/5 ring-1 ring-blue-500/20' : 'bg-slate-950/20'}`}
                     >
                       <td className="py-6 pl-4 rounded-l-xl">
                         <button onClick={(e) => { e.stopPropagation(); toggleSelect(item.sku); }} className="text-slate-500 hover:text-blue-400">
@@ -1345,7 +1345,7 @@ const EbayInventory: React.FC = () => {
                       </td>
                       <td className="py-6 max-w-xl">
                         <div className="flex items-center gap-4">
-                           <div className="w-20 h-20 bg-slate-900 rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center border border-white/5">
+                           <div className="w-20 h-20 bg-slate-900 rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center border border-slate-800">
                             {item.product?.imageUrls?.[0] ? (
                               <img src={item.product.imageUrls[0]} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                             ) : (
@@ -1361,17 +1361,17 @@ const EbayInventory: React.FC = () => {
                                 </span>
                               )}
                               {item.product?.aspects?.Size?.[0] && (
-                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-white/5 uppercase font-black">
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-900 uppercase font-black">
                                   SIZE: {item.product.aspects.Size[0]}
                                 </span>
                               )}
                               {item.product?.aspects?.Color?.[0] && (
-                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-white/5 uppercase font-black">
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-900 uppercase font-black">
                                   COLOR: {item.product.aspects.Color[0]}
                                 </span>
                               )}
                               {item.product?.aspects?.['Country/Region of Manufacture']?.[0] && (
-                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-white/5 uppercase font-black">
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-900 uppercase font-black">
                                   ORIGIN: {item.product.aspects['Country/Region of Manufacture'][0]}
                                 </span>
                               )}
@@ -1388,7 +1388,7 @@ const EbayInventory: React.FC = () => {
                           return (
                             <td key={colId} className="py-6">
                               <div className="flex flex-col gap-1">
-                                <span className="text-xs font-mono font-bold text-slate-500 bg-white/5 px-2 py-1 rounded border border-white/5 w-fit">{item.sku}</span>
+                                <span className="text-xs font-mono font-bold text-slate-500 bg-slate-900/40 px-2 py-1 rounded border border-slate-900 w-fit">{item.sku}</span>
                                 {item.listingId && (
                                   <span className="text-[10px] font-mono font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20 w-fit">ID: {item.listingId}</span>
                                 )}
@@ -1400,7 +1400,7 @@ const EbayInventory: React.FC = () => {
                         if (colId === 'qty') {
                           return (
                             <td key={colId} className="py-6 text-center">
-                              <div className={`w-8 h-8 rounded-lg mx-auto flex items-center justify-center text-sm font-bold border ${(item.availability?.shipToLocationAvailability?.quantity ?? 0) < 1 ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-slate-800 text-slate-200 border-white/5'}`}>
+                              <div className={`w-8 h-8 rounded-lg mx-auto flex items-center justify-center text-sm font-bold border ${(item.availability?.shipToLocationAvailability?.quantity ?? 0) < 1 ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-slate-800 text-slate-200 border-slate-900'}`}>
                                 {item.availability?.shipToLocationAvailability?.quantity ?? 0}
                               </div>
                             </td>
@@ -1416,7 +1416,7 @@ const EbayInventory: React.FC = () => {
                                     SCHEDULED
                                   </span>
                                 ) : item.status === 'draft' ? (
-                                  <span className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-slate-800 text-slate-500 border border-white/5">
+                                  <span className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-slate-800 text-slate-500 border border-slate-900">
                                     DRAFT
                                   </span>
                                 ) : (

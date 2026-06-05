@@ -83,7 +83,7 @@
   --blue-900: #1e3a8a;
   --blue-950: #172554;
 
-  /* Slate Palette (Neutral Tech Slate) */
+  /* Slate Palette (Neutral Tech Slate) - Dark Mode */
   --slate-50: #f8fafc;
   --slate-100: #f1f5f9;
   --slate-200: #e2e8f0;
@@ -97,6 +97,7 @@
   --slate-950: #020617;
 }
 
+/* Light Mode Overrides for Modern Tech */
 .light {
   --background: 210 40% 98%; /* Slate 50 */
   --foreground: 222 47% 11%; /* Slate 900 */
@@ -111,9 +112,30 @@
   --glass-bg: rgba(255, 255, 255, 0.75);
   --glass-border: rgba(148, 163, 184, 0.12);
   --input-bg: #FFFFFF;
+
+  --theme-btn-bg: #2563eb;
+  --theme-btn-hover: #1d4ed8;
+  --theme-btn-shadow: rgba(37, 99, 235, 0.1);
+  --theme-hover-border: rgba(59, 130, 246, 0.3);
+
+  --bg-gradient-1: hsla(220, 80%, 60%, 0.04);
+  --bg-gradient-2: hsla(250, 70%, 50%, 0.04);
+
+  /* Flipped Slate Palette (Tech) - Light Mode */
+  --slate-50: #020617;
+  --slate-100: #0f172a;
+  --slate-200: #1e293b;
+  --slate-300: #334155;
+  --slate-400: #475569;
+  --slate-500: #64748b;
+  --slate-600: #cbd5e1;
+  --slate-700: #e2e8f0;
+  --slate-800: #f1f5f9;
+  --slate-900: #f8fafc;
+  --slate-950: #ffffff;
 }
 
-/* Cozy Botanical Theme Overrides */
+/* Cozy Botanical Theme Overrides (Dark Mode) */
 .theme-botanical {
   --font-serif-family: "Playfair Display", Georgia, serif;
   --font-sans-family: "Plus Jakarta Sans", system-ui, sans-serif;
@@ -155,7 +177,7 @@
   --blue-900: #603326;
   --blue-950: #331A13;
 
-  /* Slate Palette (mapped to Muted Sage-Forest) */
+  /* Slate Palette (mapped to Muted Sage-Forest) - Dark Mode */
   --slate-50: #F5F7F6;
   --slate-100: #EBF0ED;
   --slate-200: #D3DDD7;
@@ -169,6 +191,7 @@
   --slate-950: #0E1210;
 }
 
+/* Cozy Botanical Theme Overrides (Light Mode) */
 .theme-botanical.light, .light .theme-botanical {
   --background: 36 33% 97%; /* Warm linen #FAF6F0 */
   --foreground: 150 18% 18%; /* Dark forest gray #242E28 */
@@ -183,9 +206,30 @@
   --glass-bg: rgba(255, 255, 255, 0.75);
   --glass-border: rgba(80, 98, 87, 0.12);
   --input-bg: #FFFFFF;
+
+  --theme-btn-bg: #B9735D;
+  --theme-btn-hover: #A85F49;
+  --theme-btn-shadow: rgba(185, 115, 93, 0.1);
+  --theme-hover-border: rgba(185, 115, 93, 0.3);
+
+  --bg-gradient-1: hsla(145, 20%, 40%, 0.04);
+  --bg-gradient-2: hsla(20, 35%, 50%, 0.04);
+
+  /* Flipped Slate Palette (Botanical) - Light Mode */
+  --slate-50: #0E1210;
+  --slate-100: #19221D;
+  --slate-200: #293830;
+  --slate-300: #495C53;
+  --slate-400: #597066;
+  --slate-500: #718B80;
+  --slate-600: #93AAA0;
+  --slate-700: #B7C7BF;
+  --slate-800: #D3DDD7;
+  --slate-900: #FAF6F0; /* Linen screen background */
+  --slate-950: #ffffff; /* White cards/sidebar */
 }
 
-/* Midnight Aurora Theme Overrides */
+/* Midnight Aurora Theme Overrides (Dark Mode) */
 .theme-aurora {
   --font-serif-family: "Outfit", system-ui, sans-serif;
   --font-sans-family: "Inter", system-ui, sans-serif;
@@ -227,7 +271,7 @@
   --blue-900: #4c1d95;
   --blue-950: #2e1065;
 
-  /* Slate Palette (mapped to Teal/Cyan neutrals) */
+  /* Slate Palette (mapped to Teal/Cyan neutrals) - Dark Mode */
   --slate-50: #f0fdfa;
   --slate-100: #ccfbf1;
   --slate-200: #99f6e4;
@@ -241,6 +285,7 @@
   --slate-950: #042f2e;
 }
 
+/* Midnight Aurora Theme Overrides (Light Mode) */
 .theme-aurora.light, .light .theme-aurora {
   --background: 180 20% 98%; /* Teal-tinted white */
   --foreground: 224 71% 4%; /* Dark obsidian */
@@ -255,6 +300,27 @@
   --glass-bg: rgba(255, 255, 255, 0.75);
   --glass-border: rgba(20, 184, 166, 0.12);
   --input-bg: #FFFFFF;
+
+  --theme-btn-bg: #8b5cf6;
+  --theme-btn-hover: #7c3aed;
+  --theme-btn-shadow: rgba(139, 92, 246, 0.1);
+  --theme-hover-border: rgba(99, 102, 241, 0.3);
+
+  --bg-gradient-1: hsla(260, 80%, 60%, 0.04);
+  --bg-gradient-2: hsla(180, 80%, 50%, 0.04);
+
+  /* Flipped Slate Palette (Aurora) - Light Mode */
+  --slate-50: #042f2e;
+  --slate-100: #134e4a;
+  --slate-200: #115e59;
+  --slate-300: #0f766e;
+  --slate-400: #0d9488;
+  --slate-500: #14b8a6;
+  --slate-600: #2dd4bf;
+  --slate-700: #5eead4;
+  --slate-800: #99f6e4;
+  --slate-900: #f0fdfa; /* Light teal-gray screen background */
+  --slate-950: #ffffff; /* White cards/sidebar */
 }
 
 @layer base {

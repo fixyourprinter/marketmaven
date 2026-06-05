@@ -157,7 +157,7 @@ function AppContent({
   const showMobileHeader = !isMobileView && isMobileScreen;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200">
+    <div className="min-h-screen bg-slate-900 text-slate-200">
       {/* Desktop Sidebar */}
       {showDesktopSidebar && (
         <Sidebar 
