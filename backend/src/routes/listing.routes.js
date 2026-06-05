@@ -29,12 +29,6 @@ router.post('/process', upload.array('images', 10), async (req, res) => {
       return res.status(400).json({ error: 'No images uploaded' });
     }
 
-    // Crop all uploaded files to square and overwrite them
-    for (const file of files) {
-      const image = await Jimp.read(file.path);
-      await image.cover(1000, 1000).writeAsync(file.path);
-    }
-
     const filePaths = files.map(file => file.path);
     const imagesJson = JSON.stringify(filePaths);
 
@@ -54,48 +48,68 @@ router.post('/process', upload.array('images', 10), async (req, res) => {
         // Respond immediately so user can continue using the app
         res.json({ id: newItemId, status: 'processing', title: 'AI Analysis in progress...', images: filePaths });
 
-        // Run the AI analysis in the background
-        processImages(filePaths)
-          .then((aiResult) => {
+        // Run the background cropping and AI analysis
+        setImmediate(async () => {
+          try {
+            console.log(`[Jimp] Starting background cropping for item #${newItemId}...`);
+            // Crop all uploaded files to square in the background
+            for (const file of files) {
+              const image = await Jimp.read(file.path);
+              await image.cover(1000, 1000).writeAsync(file.path);
+            }
+            console.log(`[Jimp] Background cropping completed for item #${newItemId}`);
+
+            // Run AI analysis
+            processImages(filePaths)
+              .then((aiResult) => {
+                db.run(
+                  `UPDATE items SET 
+                    title = ?, condition = ?, material = ?, measurements_note = ?, 
+                    style_details = ?, country_of_origin = ?, age = ?, retail_price = ?, 
+                    etsy_tags = ?, brand = ?, weight = ?, inventory_code = ?, category = ?, 
+                    status = 'draft'
+                   WHERE id = ?`,
+                  [
+                    aiResult.title,
+                    aiResult.condition,
+                    aiResult.material,
+                    aiResult.measurements_note,
+                    aiResult.style_details,
+                    aiResult.country_of_origin,
+                    aiResult.age,
+                    aiResult.retail_price,
+                    aiResult.etsy_tags,
+                    aiResult.brand,
+                    aiResult.weight,
+                    aiResult.inventory_code || `LM-${newItemId}`,
+                    aiResult.category,
+                    newItemId
+                  ],
+                  (updateErr) => {
+                    if (updateErr) {
+                      console.error(`Failed to update item #${newItemId} with AI results:`, updateErr.message);
+                    } else {
+                      console.log(`[AI] Background processing completed successfully for item #${newItemId}`);
+                    }
+                  }
+                );
+              })
+              .catch((aiError) => {
+                console.error(`[AI] Background processing failed for item #${newItemId}:`, aiError.message);
+                db.run(
+                  "UPDATE items SET title = 'AI Processing Failed. Please try again.', status = 'error' WHERE id = ?",
+                  [newItemId]
+                );
+              });
+
+          } catch (cropErr) {
+            console.error(`[Jimp] Background cropping failed for item #${newItemId}:`, cropErr.message);
             db.run(
-              `UPDATE items SET 
-                title = ?, condition = ?, material = ?, measurements_note = ?, 
-                style_details = ?, country_of_origin = ?, age = ?, retail_price = ?, 
-                etsy_tags = ?, brand = ?, weight = ?, inventory_code = ?, category = ?, 
-                status = 'draft'
-               WHERE id = ?`,
-              [
-                aiResult.title,
-                aiResult.condition,
-                aiResult.material,
-                aiResult.measurements_note,
-                aiResult.style_details,
-                aiResult.country_of_origin,
-                aiResult.age,
-                aiResult.retail_price,
-                aiResult.etsy_tags,
-                aiResult.brand,
-                aiResult.weight,
-                aiResult.inventory_code || `LM-${newItemId}`,
-                aiResult.category,
-                newItemId
-              ],
-              (updateErr) => {
-                if (updateErr) {
-                  console.error(`Failed to update item #${newItemId} with AI results:`, updateErr.message);
-                } else {
-                  console.log(`[AI] Background processing completed successfully for item #${newItemId}`);
-                }
-              }
-            );
-          })
-          .catch((aiError) => {
-            console.error(`[AI] Background processing failed for item #${newItemId}:`, aiError.message);
-            db.run(
-              "UPDATE items SET title = 'AI Processing Failed. Please try again.', status = 'error' WHERE id = ?",
+              "UPDATE items SET title = 'Image cropping failed. Please try again.', status = 'error' WHERE id = ?",
               [newItemId]
             );
-          });
+          }
+        });
       }
     );
 
@@ -145,12 +159,6 @@ router.post('/items/:id/images', upload.array('images', 10), async (req, res) =>
       return res.status(400).json({ error: 'No images uploaded' });
     }
 
-    // Crop all uploaded files to square and overwrite them
-    for (const file of files) {
-      const image = await Jimp.read(file.path);
-      await image.cover(1000, 1000).writeAsync(file.path);
-    }
-
     const newFilePaths = files.map(file => file.path);
 
     // Retrieve existing images from DB
@@ -173,12 +181,27 @@ router.post('/items/:id/images', upload.array('images', 10), async (req, res) =>
       db.run(
         'UPDATE items SET images = ? WHERE id = ?',
         [JSON.stringify(updatedImages), id],
-        function(err) {
-          if (err) {
-            console.error(err);
+        function(updateErr) {
+          if (updateErr) {
+            console.error(updateErr);
             return res.status(500).json({ error: 'Database error' });
           }
+          
+          // Respond immediately with the saved file paths so the frontend transitions instantly
           res.json({ id: parseInt(id), images: updatedImages });
+
+          // Crop the newly uploaded detail images in the background so they are ready for eBay
+          setImmediate(async () => {
+            try {
+              for (const file of files) {
+                const image = await Jimp.read(file.path);
+                await image.cover(1000, 1000).writeAsync(file.path);
+              }
+              console.log(`[Jimp] Successfully cropped ${files.length} detail images for item #${id} in background`);
+            } catch (cropErr) {
+              console.error(`[Jimp] Background detail images cropping failed for item #${id}:`, cropErr.message);
+            }
+          });
         }
       );
     });
