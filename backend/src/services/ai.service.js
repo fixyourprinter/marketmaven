@@ -48,15 +48,15 @@ async function processImages(imagePaths) {
            * Intimates: Intimates, Feminine, Sexy, Lacey, Lacy, Wireless, Wired
            * Occasion: Event, NYE, Holiday, Glam, Elegant, Bling, Cocktail, LBD, LWD, Rave, Coachella, Wedding Guest, Bridesmaid, Bride
 
-      2. CONDITION: Format: "Preowned condition. Please review all photos for details and measurements." Add specific visible flaws or "NWT" (New With Tags) if seen in the photos.
+      2. CONDITION: Format: "Excellent preowned condition, no stains or tears - please see pictures for details" if no flaws are visible. If you see specific flaws (e.g. stains, tears, fraying, fading), describe them clearly (e.g., "Preowned condition, has a small stain on the left sleeve - please see pictures"). If it is brand new with tags, use "NWT (New with tags) - please see pictures".
       3. MATERIAL: List fabric content from the tag if visible. If not shown or unreadable, return "Material tag not shown in photos." or "Material tag is missing or unreadable."
       4. MEASUREMENTS_NOTE: Read the size tags (including international sizes like AU/US/EU if shown). Since ruler measurements are not provided, estimate typical measurements for this size and brand, or instruct the buyer to compare with a similar item. Format exactly like this: "Tagged size [list all tag sizes]. Please compare measurements to a similar item you own before purchasing."
-      5. STYLE_DETAILS: Provide a comma-separated list of descriptive keywords and style tags (e.g., style, garment details, texture, fit, pattern, closure, rise, occasion). E.g. "Women’s jeans, light wash denim, carpenter jeans, utility style, relaxed leg, baggy fit, wide leg".
-      6. COUNTRY_OF_ORIGIN: Return the country name (e.g. "Bangladesh") or "Unknown".
+      5. STYLE_DETAILS: Provide a comma-separated list of descriptive keywords, style tags, and key-value aspect pairs (e.g., "Pattern: Solid, Closure: Zip, Fabric Wash: Dark, Features: Distressed, Pocket Type: 5-Pocket Design, Rise: Mid"). Be sure to format key-value pairs with a colon so our parser can extract them. Include aspects like Pattern, Closure, Fabric Wash, Features, Fit, Pocket Type, Garment Care, and any other attributes when identifiable.
+      6. COUNTRY_OF_ORIGIN: Scan the brand and size tag photos carefully for text indicating the country of manufacture (e.g., "Made in China", "Made in USA", "Fabriqué en..."). Return the country name (e.g. "China") or "Unknown" if not shown or unreadable.
       7. AGE: "Modern / not vintage" or the era (Y2K, 90s, 80s, etc.) based on style and tag.
       8. RETAIL_PRICE: Suggest a resale range (e.g., "$18–$28") based on typical eBay sold comps for this brand/item.
       9. ETSY_TAGS: Provide exactly 13 Poshmark style tags, comma-separated, each under 20 characters (e.g., "Womens Jeans, Cotton On, Carpenter Jeans, Size 4").
-      10. WEIGHT: Look at the third photo (scale reading) and extract the weight. E.g. "1.2" (in lbs).
+      10. WEIGHT: Look at the third photo (scale reading) showing the weight on the shipping scale. Shipping scales typically show weight in pounds and ounces (e.g., "1 lb 3.1 oz" or "0 lb 8.5 oz"). Convert this to decimal pounds (e.g., 1 lb 3 oz = 1 + 3/16 = 1.19 lbs, so output "1.19"; 0 lb 8.5 oz = 8.5/16 = 0.53 lbs, so output "0.53"). If the scale only shows ounces (e.g., "10.2 oz"), convert it (10.2/16 = 0.64 lbs, so output "0.64"). Return a clean decimal string representing the weight in pounds.
       11. INVENTORY_CODE: Look at the third photo (printed barcode/SKU) and extract the alphanumeric SKU code. E.g. "LM-123456" or similar.
 
       JSON STRUCTURE:

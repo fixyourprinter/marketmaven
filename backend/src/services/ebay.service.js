@@ -291,6 +291,17 @@ class EbayService {
       }
     };
 
+    const weightVal = parseFloat(itemData.weight);
+    if (!isNaN(weightVal) && weightVal > 0) {
+      body.packageWeightAndSize = {
+        weight: {
+          value: weightVal,
+          unit: "POUND"
+        },
+        packageType: "PACKAGE_THICK_ENVELOPE"
+      };
+    }
+
     // Parse additional dynamic aspects and UPC from style_details (e.g. "Waist Size: 30, UPC: 12345")
     if (itemData.style_details) {
       const parts = itemData.style_details.split(',').map(s => s.trim()).filter(Boolean);
@@ -758,13 +769,24 @@ class EbayService {
       }
 
       // 3. Create the Draft Offer
+      const descHtml = `
+        <div style="font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px;">
+          <h2 style="font-size: 1.25rem; font-weight: bold; border-bottom: 1px solid #eaeaea; padding-bottom: 8px; margin-bottom: 15px; color: #111;">${itemData.title}</h2>
+          <p><strong>MATERIAL:</strong><br/>${itemData.material || 'N/A'}</p>
+          <p><strong>CONDITION:</strong><br/>${itemData.condition || 'N/A'}</p>
+          <p><strong>MEASUREMENTS NOTE:</strong><br/>${itemData.measurements_note || 'N/A'}</p>
+          <p><strong>SHIPPING NOTE:</strong><br/>Items ship next business day.</p>
+          ${itemData.etsy_tags ? `<p><strong>STYLE TAGS / KEYWORDS:</strong><br/>${itemData.etsy_tags}</p>` : ''}
+        </div>
+      `.trim().replace(/\s+/g, ' ');
+
       const offerBody = {
         sku: sku,
         marketplaceId: "EBAY_US",
         format: "FIXED_PRICE",
         availableQuantity: 1,
         categoryId: categoryId,
-        listingDescription: itemData.style_details || itemData.title,
+        listingDescription: descHtml,
         pricingSummary: {
           price: {
             value: priceVal.toString(),
