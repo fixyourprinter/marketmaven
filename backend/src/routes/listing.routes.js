@@ -90,7 +90,7 @@ router.post('/process', upload.array('images', 10), async (req, res) => {
                   `UPDATE items SET 
                     title = ?, condition = ?, material = ?, measurements_note = ?, 
                     style_details = ?, country_of_origin = ?, age = ?, retail_price = ?, 
-                    etsy_tags = ?, brand = ?, weight = ?, inventory_code = ?, category = ?, 
+                    etsy_tags = ?, brand = ?, size = ?, weight = ?, inventory_code = ?, category = ?, 
                     status = 'draft'
                    WHERE id = ?`,
                   [
@@ -104,6 +104,7 @@ router.post('/process', upload.array('images', 10), async (req, res) => {
                     aiResult.retail_price,
                     aiResult.etsy_tags,
                     aiResult.brand,
+                    aiResult.size,
                     aiResult.weight,
                     aiResult.inventory_code || `LM-${newItemId}`,
                     aiResult.category,

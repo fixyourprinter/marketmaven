@@ -291,6 +291,26 @@ class EbayService {
       }
     };
 
+    // Parse additional dynamic aspects and UPC from style_details (e.g. "Waist Size: 30, UPC: 12345")
+    if (itemData.style_details) {
+      const parts = itemData.style_details.split(',').map(s => s.trim()).filter(Boolean);
+      parts.forEach(part => {
+        if (part.includes(':')) {
+          const colonIndex = part.indexOf(':');
+          const key = part.substring(0, colonIndex).trim();
+          const val = part.substring(colonIndex + 1).trim();
+          if (key && val) {
+            const formattedKey = key.replace(/\b\w/g, c => c.toUpperCase());
+            if (formattedKey.toLowerCase() === 'upc') {
+              body.product.upc = [val];
+            } else {
+              body.product.aspects[formattedKey] = [val];
+            }
+          }
+        }
+      });
+    }
+
     try {
       await axios.put(`${this.baseUrl}/sell/inventory/v1/inventory_item/${sku}`, body, {
         headers: {
