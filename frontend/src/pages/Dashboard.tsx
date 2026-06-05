@@ -57,6 +57,7 @@ const Dashboard: React.FC = () => {
   const [draftId, setDraftId] = useState<number | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [draggedOverSlot, setDraggedOverSlot] = useState<'cover' | 'sizeTag' | 'measurements' | null>(null);
+  const [listingIds, setListingIds] = useState<Set<number>>(new Set());
 
   // Visual/UX states
   const [simulatedProgress, setSimulatedProgress] = useState(0);
@@ -301,6 +302,7 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
   };
 
   const handleEbayList = async (id: number) => {
+    setListingIds(prev => new Set([...prev, id]));
     try {
       const response = await axios.post(`${API_BASE}/listings/items/${id}/ebay`);
       if (response.data.status === 'success') {
@@ -311,6 +313,12 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
       }
     } catch (error) {
       alert('Failed to list on eBay. Make sure you are logged in.');
+    } finally {
+      setListingIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   };
 
@@ -870,10 +878,24 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                                     </button>
                                     <button 
                                       onClick={(e) => { e.stopPropagation(); handleEbayList(item.id); }}
-                                      className="p-2 bg-blue-600 rounded-lg hover:bg-blue-500 text-white transition-all flex items-center gap-2 text-xs font-semibold shadow-lg shadow-blue-500/20"
+                                      disabled={listingIds.has(item.id)}
+                                      className={`p-2 rounded-lg text-white transition-all flex items-center gap-2 text-xs font-semibold shadow-lg ${
+                                        listingIds.has(item.id)
+                                          ? 'bg-blue-600/50 cursor-not-allowed opacity-70'
+                                          : 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/20 cursor-pointer'
+                                      }`}
                                     >
-                                      <ExternalLink size={16} />
-                                      List on eBay
+                                      {listingIds.has(item.id) ? (
+                                        <>
+                                          <RefreshCw size={16} className="animate-spin" />
+                                          Listing...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <ExternalLink size={16} />
+                                          List on eBay
+                                        </>
+                                      )}
                                     </button>
                                   </div>
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

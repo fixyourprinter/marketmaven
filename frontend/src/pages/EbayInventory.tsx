@@ -21,6 +21,7 @@ interface InventoryItem {
     };
   };
   isTraditional?: boolean;
+  status?: string;
 }
 
 const EbayInventory: React.FC = () => {
@@ -344,9 +345,19 @@ const EbayInventory: React.FC = () => {
                       </td>
                       <td className="py-6 text-center">
                         <div className="flex flex-col gap-1 items-center justify-center">
-                          <span className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-green-500/10 text-green-500 border border-green-500/20">
-                            LIVE
-                          </span>
+                          {item.status === 'scheduled' ? (
+                            <span className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
+                              SCHEDULED
+                            </span>
+                          ) : item.status === 'draft' ? (
+                            <span className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-slate-800 text-slate-500 border border-white/5">
+                              DRAFT
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-green-500/10 text-green-500 border border-green-500/20">
+                              LIVE
+                            </span>
+                          )}
                           {item.isTraditional && (
                             <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20">
                               Traditional

@@ -266,9 +266,25 @@ class EbayService {
             if (offers && offers.length > 0) {
               const publishedOffer = offers.find(o => o.status === 'PUBLISHED') || offers[0];
               item.listingId = publishedOffer.listingId;
+              
+              if (publishedOffer.scheduledStartTime) {
+                const startTime = new Date(publishedOffer.scheduledStartTime);
+                if (startTime > new Date()) {
+                  item.status = 'scheduled';
+                } else {
+                  item.status = 'active';
+                }
+              } else if (publishedOffer.status === 'PUBLISHED') {
+                item.status = 'active';
+              } else {
+                item.status = 'draft';
+              }
+            } else {
+              item.status = 'draft';
             }
           } catch (e) {
             console.error(`Failed to fetch offers for SKU ${item.sku}:`, e.message);
+            item.status = 'draft';
           }
         }));
       } else {
@@ -321,7 +337,7 @@ class EbayService {
       ? 'https://api.sandbox.ebay.com/ws/api.dll'
       : 'https://api.ebay.com/ws/api.dll';
 
-    console.log(`[EbayService] Making GetMyeBaySelling call to: ${tradingUrl}`);
+    console.log(`[EbayService] Making GetMyeBaySelling call for active and scheduled items to: ${tradingUrl}`);
 
     const xml = `<?xml version="1.0" encoding="utf-8"?>
 <GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents">
@@ -332,6 +348,13 @@ class EbayService {
       <PageNumber>1</PageNumber>
     </Pagination>
   </ActiveList>
+  <ScheduledList>
+    <Sort>StartTime</Sort>
+    <Pagination>
+      <EntriesPerPage>200</EntriesPerPage>
+      <PageNumber>1</PageNumber>
+    </Pagination>
+  </ScheduledList>
   <DetailLevel>ReturnAll</DetailLevel>
 </GetMyeBaySellingRequest>`;
 
@@ -360,7 +383,20 @@ class EbayService {
         throw new Error(errorMsg);
       }
 
-      return parseItemsFromXml(data);
+      // Extract ActiveList XML block and ScheduledList XML block separately
+      let activeXml = '';
+      let scheduledXml = '';
+      
+      const activeMatch = data.match(/<ActiveList>([\s\S]*?)<\/ActiveList>/);
+      if (activeMatch) activeXml = activeMatch[1];
+      
+      const scheduledMatch = data.match(/<ScheduledList>([\s\S]*?)<\/ScheduledList>/);
+      if (scheduledMatch) scheduledXml = scheduledMatch[1];
+
+      const activeItems = parseItemsFromXml(activeXml, 'active');
+      const scheduledItems = parseItemsFromXml(scheduledXml, 'scheduled');
+
+      return [...activeItems, ...scheduledItems];
     } catch (error) {
       console.error('[EbayService] Get Traditional Listings Error:', error.response?.data || error.message);
       throw error;
@@ -471,13 +507,175 @@ class EbayService {
     }
   }
 
+  async getFulfillmentPolicyId() {
+    try {
+      const response = await axios.get(`${this.baseUrl}/sell/account/v1/fulfillment_policy?marketplace_id=EBAY_US`, {
+        headers: { 'Authorization': `Bearer ${this.accessToken}` }
+      });
+      return response.data.fulfillmentPolicies?.[0]?.fulfillmentPolicyId;
+    } catch (e) {
+      console.error('Fulfillment policy fetch error:', e.response?.data || e.message);
+      return null;
+    }
+  }
+
+  async getReturnPolicyId() {
+    try {
+      const response = await axios.get(`${this.baseUrl}/sell/account/v1/return_policy?marketplace_id=EBAY_US`, {
+        headers: { 'Authorization': `Bearer ${this.accessToken}` }
+      });
+      return response.data.returnPolicies?.[0]?.returnPolicyId;
+    } catch (e) {
+      console.error('Return policy fetch error:', e.response?.data || e.message);
+      return null;
+    }
+  }
+
+  async getPaymentPolicyId() {
+    try {
+      const response = await axios.get(`${this.baseUrl}/sell/account/v1/payment_policy?marketplace_id=EBAY_US`, {
+        headers: { 'Authorization': `Bearer ${this.accessToken}` }
+      });
+      return response.data.paymentPolicies?.[0]?.paymentPolicyId;
+    } catch (e) {
+      console.error('Payment policy fetch error:', e.response?.data || e.message);
+      return null;
+    }
+  }
+
+  async getSuggestedCategoryId(title) {
+    try {
+      const response = await axios.get(`${this.baseUrl}/commerce/taxonomy/v1/category_tree/0/get_category_suggestions?q=${encodeURIComponent(title)}`, {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`
+        }
+      });
+      const suggestions = response.data.categorySuggestions;
+      if (suggestions && suggestions.length > 0) {
+        return suggestions[0].category.categoryId;
+      }
+    } catch (e) {
+      console.error('Category suggestion error:', e.response?.data || e.message);
+    }
+    return '11450'; // Fallback to Clothing, Shoes & Accessories general
+  }
+
+  async getMerchantLocationKey() {
+    try {
+      const response = await axios.get(`${this.baseUrl}/sell/inventory/v1/location`, {
+        headers: { 'Authorization': `Bearer ${this.accessToken}` }
+      });
+      if (response.data.locations && response.data.locations.length > 0) {
+        return response.data.locations[0].merchantLocationKey;
+      }
+    } catch (e) {
+      console.log('Failed to get location, will try to create default-location');
+    }
+    
+    // Create a default location if none exists
+    const defaultLocationKey = 'default-location';
+    try {
+      await axios.post(`${this.baseUrl}/sell/inventory/v1/location/${defaultLocationKey}`, {
+        location: {
+          address: {
+            addressLine1: "123 Main St",
+            city: "San Jose",
+            stateOrProvince: "CA",
+            postalCode: "95125",
+            country: "US"
+          }
+        },
+        locationWebUrl: "http://example.com",
+        name: "Main Warehouse",
+        merchantLocationStatus: "ENABLED",
+        locationTypes: ["STORE"]
+      }, {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      return defaultLocationKey;
+    } catch (error) {
+      console.error('Failed to create location:', error.response?.data || error.message);
+      return defaultLocationKey;
+    }
+  }
+
   async createDraft(itemData) {
     const sku = `LM-${itemData.inventory_code || Date.now()}`;
     try {
+      // 1. Create the inventory item (creates EPS images and catalog entry)
       await this.createInventoryItem(sku, itemData);
-      return { status: 'success', sku, message: 'Inventory item created successfully on eBay' };
+
+      // 2. Resolve necessary details for the offer
+      const [fulfillmentPolicyId, returnPolicyId, paymentPolicyId, locationKey, categoryId] = await Promise.all([
+        this.getFulfillmentPolicyId(),
+        this.getReturnPolicyId(),
+        this.getPaymentPolicyId(),
+        this.getMerchantLocationKey(),
+        this.getSuggestedCategoryId(itemData.title)
+      ]);
+
+      if (!fulfillmentPolicyId || !returnPolicyId || !paymentPolicyId) {
+        throw new Error("Could not fetch active listing policy profiles (shipping, return, or payment) from your eBay account. Please set up default policies in your eBay Seller Hub first.");
+      }
+
+      // Parse retail price
+      let priceVal = 19.99;
+      if (itemData.retail_price) {
+        const match = itemData.retail_price.match(/[\d.]+/);
+        if (match) {
+          priceVal = parseFloat(match[0]);
+        }
+      }
+
+      // 3. Create the Draft Offer
+      const offerBody = {
+        sku: sku,
+        marketplaceId: "EBAY_US",
+        format: "FIXED_PRICE",
+        availableQuantity: 1,
+        categoryId: categoryId,
+        listingDescription: itemData.style_details || itemData.title,
+        pricingSummary: {
+          price: {
+            value: priceVal.toString(),
+            currency: "USD"
+          }
+        },
+        listingPolicies: {
+          fulfillmentPolicyId: fulfillmentPolicyId,
+          returnPolicyId: returnPolicyId,
+          paymentPolicyId: paymentPolicyId
+        },
+        merchantLocationKey: locationKey
+      };
+
+      const offerResponse = await axios.post(`${this.baseUrl}/sell/inventory/v1/offer`, offerBody, {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Language': 'en-US',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const offerId = offerResponse.data.offerId;
+      console.log(`[EbayService] Draft Offer #${offerId} created successfully on eBay for SKU ${sku}`);
+
+      return { 
+        status: 'success', 
+        sku, 
+        offerId, 
+        message: 'Draft Listing successfully created in your eBay Seller Hub!' 
+      };
     } catch (error) {
-      return { status: 'error', message: error.message };
+      console.error('eBay Create Draft Error:', error.response?.data || error.message);
+      let detailMsg = error.message;
+      if (error.response?.data?.errors) {
+        detailMsg = error.response.data.errors.map(e => e.message).join(', ');
+      }
+      return { status: 'error', message: detailMsg };
     }
   }
 }
@@ -492,8 +690,9 @@ function decodeXmlEntities(str) {
     .replace(/&apos;/g, "'");
 }
 
-function parseItemsFromXml(xml) {
+function parseItemsFromXml(xml, status) {
   const items = [];
+  if (!xml) return items;
   const itemBlocks = xml.split('<Item>');
   for (let i = 1; i < itemBlocks.length; i++) {
     const block = itemBlocks[i].split('</Item>')[0];
@@ -542,6 +741,7 @@ function parseItemsFromXml(xml) {
           quantity: quantity
         }
       },
+      status: status,
       isTraditional: true
     });
   }
