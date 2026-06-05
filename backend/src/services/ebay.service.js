@@ -253,6 +253,22 @@ class EbayService {
     const colorMatch = itemData.title.match(/Blue|Red|Black|White|Green|Orange|Purple|Yellow|Brown|Gray|Pink|Tan|Beige|Cream|Navy|Olive|Maroon|Khaki|Denim/i);
     const color = colorMatch ? colorMatch[0] : 'Multicolor';
 
+    // Extract Style aspect
+    let style = 'Basic';
+    if (itemData.style_details) {
+      const parts = itemData.style_details.split(',').map(s => s.trim()).filter(Boolean);
+      // Try to find a style that doesn't just name the garment category itself
+      const genericWords = ['jeans', 'pants', 'shirt', 'clothing', 'women', 'men', 'boy', 'girl', 'unisex', 'kid', 'apparel', 'trousers', 'shorts', 'sweatshirt', 'hoodie', 'jacket', 'coat', 'sweater', 'tee', 't-shirt'];
+      const filtered = parts.filter(p => {
+        const lower = p.toLowerCase();
+        return !genericWords.some(word => lower === word || lower.includes(word));
+      });
+      const candidate = filtered[0] || parts[0];
+      if (candidate) {
+        style = candidate.charAt(0).toUpperCase() + candidate.slice(1);
+      }
+    }
+
     const body = {
       product: {
         title: itemData.title.substring(0, 80), // Max 80 chars
@@ -265,7 +281,8 @@ class EbayService {
           Color: [color],
           Department: [department],
           Type: [type],
-          "Size Type": [sizeType]
+          "Size Type": [sizeType],
+          Style: [style]
         }
       },
       condition: "USED_EXCELLENT",
