@@ -992,7 +992,18 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                                       </div>
                                       <div>
                                         <h5 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">9. RETAIL PRICE</h5>
-                                        <p className="text-lg font-bold text-green-400">{item.retail_price}</p>
+                                        <div className="flex items-center gap-3">
+                                          <p className="text-lg font-bold text-green-400">{item.retail_price}</p>
+                                          <a 
+                                            href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent((item.brand || '') + ' ' + item.title)}&LH_Sold=1&LH_Complete=1`}
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="text-xs text-blue-400 hover:text-white hover:underline flex items-center gap-1 font-semibold"
+                                          >
+                                            <ExternalLink size={12} />
+                                            Search Sold Comps
+                                          </a>
+                                        </div>
                                       </div>
                                     </div>
                                   </div>

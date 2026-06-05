@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Package, Search, Edit2, Trash2, CheckSquare, Square, RefreshCcw } from 'lucide-react';
+import { Package, Search, Edit2, Trash2, CheckSquare, Square, RefreshCcw, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const API_BASE = '/api';
@@ -532,13 +532,24 @@ const EbayInventory: React.FC = () => {
                              <div className="space-y-4">
                                <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">eBay Metadata</h5>
                                <div className="glass p-4 rounded-xl border border-white/5 space-y-3">
-                                  <div className="flex justify-between text-xs">
+                                  <div className="flex justify-between text-xs font-sans">
                                      <span className="text-slate-500 font-bold uppercase">Condition</span>
                                      <span className="text-slate-200 font-black">{item.condition}</span>
                                   </div>
-                                  <div className="flex justify-between text-xs">
+                                  <div className="flex justify-between text-xs font-sans">
                                      <span className="text-slate-500 font-bold uppercase">SKU</span>
                                      <span className="text-blue-400 font-black">{item.sku}</span>
+                                  </div>
+                                  <div className="pt-2 border-t border-white/5">
+                                    <a 
+                                      href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent((item.product?.aspects?.Brand?.[0] || '') + ' ' + (item.product?.title || ''))}&LH_Sold=1&LH_Complete=1`}
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="w-full py-2 bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white rounded-lg transition-all text-xs font-semibold flex items-center justify-center gap-1.5 border border-blue-500/20 font-sans cursor-pointer"
+                                    >
+                                      <ExternalLink size={12} />
+                                      Search Sold Comps
+                                    </a>
                                   </div>
                                </div>
                              </div>
