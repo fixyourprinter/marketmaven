@@ -199,6 +199,60 @@ class EbayService {
       }
     }
 
+    // Dynamically extract required clothing aspects to prevent publish errors
+    let department = 'Men'; // Default fallback
+    const titleAndCategory = `${itemData.title} ${itemData.category || ''}`.toLowerCase();
+    if (titleAndCategory.includes('women')) {
+      department = 'Women';
+    } else if (titleAndCategory.includes('girls') || titleAndCategory.includes("girl's")) {
+      department = 'Girls';
+    } else if (titleAndCategory.includes('boys') || titleAndCategory.includes("boy's")) {
+      department = 'Boys';
+    } else if (titleAndCategory.includes('unisex kid') || titleAndCategory.includes('kids') || titleAndCategory.includes('youth')) {
+      department = 'Unisex Kids';
+    } else if (titleAndCategory.includes('baby') || titleAndCategory.includes('infant') || titleAndCategory.includes('toddler')) {
+      department = 'Baby';
+    }
+
+    let type = 'Jeans'; // Default fallback
+    if (titleAndCategory.includes('t-shirt') || titleAndCategory.includes('tee')) {
+      type = 'T-Shirt';
+    } else if (titleAndCategory.includes('shirt') || titleAndCategory.includes('button')) {
+      type = 'Button-Up';
+    } else if (titleAndCategory.includes('sweater') || titleAndCategory.includes('pullover') || titleAndCategory.includes('cardigan')) {
+      type = 'Sweater';
+    } else if (titleAndCategory.includes('hoodie') || titleAndCategory.includes('sweatshirt')) {
+      type = 'Hoodie';
+    } else if (titleAndCategory.includes('jacket') || titleAndCategory.includes('coat') || titleAndCategory.includes('outerwear')) {
+      type = 'Jacket';
+    } else if (titleAndCategory.includes('pants') || titleAndCategory.includes('trousers') || titleAndCategory.includes('chinos')) {
+      type = 'Pants';
+    } else if (titleAndCategory.includes('shorts')) {
+      type = 'Shorts';
+    } else if (titleAndCategory.includes('dress')) {
+      type = 'Dress';
+    } else if (titleAndCategory.includes('skirt')) {
+      type = 'Skirt';
+    } else if (titleAndCategory.includes('leggings') || titleAndCategory.includes('activewear')) {
+      type = 'Leggings';
+    }
+
+    let sizeType = 'Regular';
+    if (titleAndCategory.includes('tall') || titleAndCategory.includes('big')) {
+      sizeType = 'Big & Tall';
+    } else if (titleAndCategory.includes('plus')) {
+      sizeType = 'Plus';
+    } else if (titleAndCategory.includes('petite')) {
+      sizeType = 'Petite';
+    } else if (titleAndCategory.includes('junior')) {
+      sizeType = 'Juniors';
+    } else if (titleAndCategory.includes('maternity')) {
+      sizeType = 'Maternity';
+    }
+
+    const colorMatch = itemData.title.match(/Blue|Red|Black|White|Green|Orange|Purple|Yellow|Brown|Gray|Pink|Tan|Beige|Cream|Navy|Olive|Maroon|Khaki|Denim/i);
+    const color = colorMatch ? colorMatch[0] : 'Multicolor';
+
     const body = {
       product: {
         title: itemData.title.substring(0, 80), // Max 80 chars
@@ -208,7 +262,10 @@ class EbayService {
           Brand: [itemData.brand || 'Unbranded'],
           Size: [itemData.size || 'N/A'],
           Material: [itemData.material || 'N/A'],
-          Color: [(itemData.title.match(/Blue|Red|Black|White|Green|Orange|Purple|Yellow/i) || ['Multicolor'])[0]]
+          Color: [color],
+          Department: [department],
+          Type: [type],
+          "Size Type": [sizeType]
         }
       },
       condition: "USED_EXCELLENT",
