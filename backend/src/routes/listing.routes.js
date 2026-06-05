@@ -9,6 +9,30 @@ const db = require('../db/database');
 
 const router = express.Router();
 
+// Helper to delete local files on disk
+function deleteItemImages(imagesJson) {
+  if (!imagesJson) return;
+  try {
+    const filePaths = JSON.parse(imagesJson);
+    if (Array.isArray(filePaths)) {
+      for (const filePath of filePaths) {
+        const resolvedPath = path.resolve(__dirname, '../../', filePath);
+        fs.unlink(resolvedPath, (err) => {
+          if (err) {
+            if (err.code !== 'ENOENT') {
+              console.error(`Failed to delete local file ${resolvedPath}:`, err.message);
+            }
+          } else {
+            console.log(`Deleted local image asset: ${resolvedPath}`);
+          }
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Error parsing images for deletion:', e.message);
+  }
+}
+
 // Multer storage configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -141,7 +165,14 @@ router.post('/items/:id/ebay', async (req, res) => {
     try {
       const result = await ebayService.createDraft(item);
       if (result.status === 'success') {
-        db.run('UPDATE items SET status = ? WHERE id = ?', ['listed', id]);
+        db.run('UPDATE items SET status = ? WHERE id = ?', ['listed', id], (updateErr) => {
+          if (updateErr) {
+            console.error('Failed to update status to listed:', updateErr.message);
+          } else {
+            console.log(`[eBay] Item #${id} listed successfully. Deleting local image assets...`);
+            deleteItemImages(item.images);
+          }
+        });
       }
       res.json(result);
     } catch (error) {
@@ -215,12 +246,25 @@ router.post('/items/:id/images', upload.array('images', 10), async (req, res) =>
 // Delete a local item
 router.delete('/items/:id', (req, res) => {
   const { id } = req.params;
-  db.run('DELETE FROM items WHERE id = ?', [id], function(err) {
+  
+  db.get('SELECT images FROM items WHERE id = ?', [id], (err, item) => {
     if (err) {
       console.error(err);
-      return res.status(500).json({ error: 'Failed to delete item from database' });
+      return res.status(500).json({ error: 'Database error' });
     }
-    res.json({ status: 'success', message: 'Item deleted successfully' });
+    
+    db.run('DELETE FROM items WHERE id = ?', [id], function(deleteErr) {
+      if (deleteErr) {
+        console.error(deleteErr);
+        return res.status(500).json({ error: 'Failed to delete item from database' });
+      }
+      
+      if (item && item.images) {
+        deleteItemImages(item.images);
+      }
+      
+      res.json({ status: 'success', message: 'Item deleted successfully' });
+    });
   });
 });
 
