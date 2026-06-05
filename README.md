@@ -46,10 +46,11 @@ graph TD
    * Snap the **Big Three** critical photos (Cover, Size Tag, Ruler/Measurements) $\rightarrow$ start backend AI parsing immediately.
    * While the AI is reasoning in the background (60-90s), snap up to 7 optional detail photos (pockets, material tags, fabric details).
    * Once AI is done, upload detail photos to finish the draft.
-2. **Dashboard Manager**: Review local drafts, inspect extracted metadata (estimated waist/inseam, material composition, brand, title), copy templates, or publish straight to eBay.
+2. **Dashboard Manager**: Review local drafts, edit draft details directly in the expanded drawer, import optional aspects/details from eBay sold comps using any eBay Item ID, copy templates, or publish straight to eBay.
 3. **Unified Live Inventory**: Management table that merges modern Inventory API listings and traditional/legacy eBay listings, with support for ending listings directly from the app.
 4. **Wife's Feedback Box**: An inline SQLite-backed suggestions queue on the dashboard that lets your wife send emoticons and text feedback. The admin dashboard lets you read, resolve, or delete feedback.
 5. **Interactive Settings**: On-the-fly toggling between **Cozy Dark** / **Bright Linen** (light mode) themes, and **Sandbox** / **Production** eBay environments (reloads credentials automatically).
+6. **Saturday Scheduling**: Automatically calculates and schedules draft publishing for the upcoming Saturday at 9:00 AM, publishing them directly as Scheduled listings in eBay Seller Hub.
 
 ---
 
