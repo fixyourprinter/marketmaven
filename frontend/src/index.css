@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 
 @import "tailwindcss";
 
 @theme {
-  --font-serif: "Playfair Display", Georgia, serif;
-  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-serif: var(--font-serif-family);
+  --font-sans: var(--font-sans-family);
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
@@ -13,34 +13,111 @@
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
 
-  /* Map blue to Terracotta/Copper */
-  --color-blue-50: #FAF2EF;
-  --color-blue-100: #F4E0D9;
-  --color-blue-200: #E6C0B3;
-  --color-blue-300: #D49D8C;
-  --color-blue-400: #C27D6B;
-  --color-blue-500: #B9735D;
-  --color-blue-600: #A85F49;
-  --color-blue-700: #8E4C38;
-  --color-blue-800: #743D2E;
-  --color-blue-900: #603326;
-  --color-blue-950: #331A13;
+  /* Map blue to dynamic CSS variables */
+  --color-blue-50: var(--blue-50);
+  --color-blue-100: var(--blue-100);
+  --color-blue-200: var(--blue-200);
+  --color-blue-300: var(--blue-300);
+  --color-blue-400: var(--blue-400);
+  --color-blue-500: var(--blue-500);
+  --color-blue-600: var(--blue-600);
+  --color-blue-700: var(--blue-700);
+  --color-blue-800: var(--blue-800);
+  --color-blue-900: var(--blue-900);
+  --color-blue-950: var(--blue-950);
 
-  /* Map slate to Muted Sage-Forest */
-  --color-slate-50: #F5F7F6;
-  --color-slate-100: #EBF0ED;
-  --color-slate-200: #D3DDD7;
-  --color-slate-300: #B7C7BF;
-  --color-slate-400: #93AAA0;
-  --color-slate-500: #718B80;
-  --color-slate-600: #597066;
-  --color-slate-700: #495C53;
-  --color-slate-800: #293830;
-  --color-slate-900: #19221D;
-  --color-slate-950: #0E1210;
+  /* Map slate to dynamic CSS variables */
+  --color-slate-50: var(--slate-50);
+  --color-slate-100: var(--slate-100);
+  --color-slate-200: var(--slate-200);
+  --color-slate-300: var(--slate-300);
+  --color-slate-400: var(--slate-400);
+  --color-slate-500: var(--slate-500);
+  --color-slate-600: var(--slate-600);
+  --color-slate-700: var(--slate-700);
+  --color-slate-800: var(--slate-800);
+  --color-slate-900: var(--slate-900);
+  --color-slate-950: var(--slate-950);
 }
 
 :root {
+  /* Dynamic fonts - default to Modern Tech (Inter) */
+  --font-serif-family: "Inter", system-ui, sans-serif;
+  --font-sans-family: "Inter", system-ui, sans-serif;
+
+  /* HSL variables */
+  --primary: 221.2 83.2% 53.3%; /* Cobalt Blue */
+  --primary-foreground: 210 40% 98%;
+  --background: 222 47% 8%; /* Deep Navy Slate */
+  --foreground: 210 40% 98%; /* Slate 50 */
+  --card: 222 47% 11%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 47% 11%;
+  --popover-foreground: 210 40% 98%;
+  --border: 222 30% 18%; /* Slate border */
+  --input: 222 30% 18%;
+  --ring: 221.2 83.2% 53.3%;
+
+  --glass-bg: rgba(15, 21, 36, 0.6);
+  --glass-border: rgba(148, 163, 184, 0.08);
+  --input-bg: rgba(0, 0, 0, 0.25);
+
+  --theme-btn-bg: #2563eb;
+  --theme-btn-hover: #1d4ed8;
+  --theme-btn-shadow: rgba(37, 99, 235, 0.2);
+  --theme-hover-border: rgba(59, 130, 246, 0.2);
+
+  --bg-gradient-1: hsla(220, 80%, 60%, 0.08);
+  --bg-gradient-2: hsla(250, 70%, 50%, 0.08);
+
+  /* Blue Palette (Tech Cobalt Blue) */
+  --blue-50: #eff6ff;
+  --blue-100: #dbeafe;
+  --blue-200: #bfdbfe;
+  --blue-300: #93c5fd;
+  --blue-400: #60a5fa;
+  --blue-500: #3b82f6;
+  --blue-600: #2563eb;
+  --blue-700: #1d4ed8;
+  --blue-800: #1e40af;
+  --blue-900: #1e3a8a;
+  --blue-950: #172554;
+
+  /* Slate Palette (Neutral Tech Slate) */
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  --slate-950: #020617;
+}
+
+.light {
+  --background: 210 40% 98%; /* Slate 50 */
+  --foreground: 222 47% 11%; /* Slate 900 */
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --border: 220 14% 90%; /* Slate 200 */
+  --input: 0 0% 100%;
+  --ring: 221.2 83.2% 53.3%;
+
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(148, 163, 184, 0.12);
+  --input-bg: #FFFFFF;
+}
+
+/* Cozy Botanical Theme Overrides */
+.theme-botanical {
+  --font-serif-family: "Playfair Display", Georgia, serif;
+  --font-sans-family: "Plus Jakarta Sans", system-ui, sans-serif;
+
   --primary: 20 50% 55%; /* Terracotta #B9735D */
   --primary-foreground: 0 0% 100%;
   --background: 150 15% 7%; /* Deep forest charcoal #0e1210 */
@@ -56,9 +133,43 @@
   --glass-bg: rgba(21, 26, 24, 0.6);
   --glass-border: rgba(147, 170, 160, 0.08);
   --input-bg: rgba(0, 0, 0, 0.25);
+  
+  --theme-btn-bg: #B9735D;
+  --theme-btn-hover: #A85F49;
+  --theme-btn-shadow: rgba(185, 115, 93, 0.2);
+  --theme-hover-border: rgba(185, 115, 93, 0.2);
+
+  --bg-gradient-1: hsla(145, 20%, 40%, 0.12);
+  --bg-gradient-2: hsla(20, 35%, 50%, 0.12);
+
+  /* Blue Palette (mapped to Terracotta/Copper) */
+  --blue-50: #FAF2EF;
+  --blue-100: #F4E0D9;
+  --blue-200: #E6C0B3;
+  --blue-300: #D49D8C;
+  --blue-400: #C27D6B;
+  --blue-500: #B9735D;
+  --blue-600: #A85F49;
+  --blue-700: #8E4C38;
+  --blue-800: #743D2E;
+  --blue-900: #603326;
+  --blue-950: #331A13;
+
+  /* Slate Palette (mapped to Muted Sage-Forest) */
+  --slate-50: #F5F7F6;
+  --slate-100: #EBF0ED;
+  --slate-200: #D3DDD7;
+  --slate-300: #B7C7BF;
+  --slate-400: #93AAA0;
+  --slate-500: #718B80;
+  --slate-600: #597066;
+  --slate-700: #495C53;
+  --slate-800: #293830;
+  --slate-900: #19221D;
+  --slate-950: #0E1210;
 }
 
-.light {
+.theme-botanical.light, .light .theme-botanical {
   --background: 36 33% 97%; /* Warm linen #FAF6F0 */
   --foreground: 150 18% 18%; /* Dark forest gray #242E28 */
   --card: 0 0% 100%; /* Pure white */
@@ -74,6 +185,78 @@
   --input-bg: #FFFFFF;
 }
 
+/* Midnight Aurora Theme Overrides */
+.theme-aurora {
+  --font-serif-family: "Outfit", system-ui, sans-serif;
+  --font-sans-family: "Inter", system-ui, sans-serif;
+
+  --primary: 262.2 83.3% 57.8%; /* Electric Purple/Indigo #8b5cf6 */
+  --primary-foreground: 180 20% 98%;
+  --background: 224 71% 4%; /* Obsidian Midnight black #030712 */
+  --foreground: 180 20% 98%; /* Teal-tinted light gray */
+  --card: 224 71% 7%; /* Lighter obsidian #0b0f19 */
+  --card-foreground: 180 20% 98%;
+  --popover: 224 71% 7%;
+  --popover-foreground: 180 20% 98%;
+  --border: 224 40% 14%; /* Deep border */
+  --input: 224 40% 14%;
+  --ring: 262.2 83.3% 57.8%;
+
+  --glass-bg: rgba(7, 10, 19, 0.6);
+  --glass-border: rgba(99, 102, 241, 0.08);
+  --input-bg: rgba(0, 0, 0, 0.35);
+
+  --theme-btn-bg: #8b5cf6;
+  --theme-btn-hover: #7c3aed;
+  --theme-btn-shadow: rgba(139, 92, 246, 0.2);
+  --theme-hover-border: rgba(99, 102, 241, 0.25);
+
+  --bg-gradient-1: hsla(260, 80%, 60%, 0.08);
+  --bg-gradient-2: hsla(180, 80%, 50%, 0.08);
+
+  /* Blue Palette (mapped to Indigo/Purple) */
+  --blue-50: #f5f3ff;
+  --blue-100: #ede9fe;
+  --blue-200: #ddd6fe;
+  --blue-300: #c084fc;
+  --blue-400: #a78bfa;
+  --blue-500: #8b5cf6;
+  --blue-600: #7c3aed;
+  --blue-700: #6d28d9;
+  --blue-800: #5b21b6;
+  --blue-900: #4c1d95;
+  --blue-950: #2e1065;
+
+  /* Slate Palette (mapped to Teal/Cyan neutrals) */
+  --slate-50: #f0fdfa;
+  --slate-100: #ccfbf1;
+  --slate-200: #99f6e4;
+  --slate-300: #5eead4;
+  --slate-400: #2dd4bf;
+  --slate-500: #14b8a6;
+  --slate-600: #0d9488;
+  --slate-700: #0f766e;
+  --slate-800: #115e59;
+  --slate-900: #134e4a;
+  --slate-950: #042f2e;
+}
+
+.theme-aurora.light, .light .theme-aurora {
+  --background: 180 20% 98%; /* Teal-tinted white */
+  --foreground: 224 71% 4%; /* Dark obsidian */
+  --card: 0 0% 100%;
+  --card-foreground: 224 71% 4%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 224 71% 4%;
+  --border: 180 15% 90%;
+  --input: 0 0% 100%;
+  --ring: 262.2 83.3% 57.8%;
+
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(20, 184, 166, 0.12);
+  --input-bg: #FFFFFF;
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
@@ -83,8 +266,8 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     background-image: 
-      radial-gradient(at 0% 0%, hsla(145, 20%, 40%, 0.12) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, hsla(20, 35%, 50%, 0.12) 0px, transparent 50%);
+      radial-gradient(at 0% 0%, var(--bg-gradient-1) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, var(--bg-gradient-2) 0px, transparent 50%);
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-serif);
@@ -96,7 +279,7 @@
   background-color: var(--glass-bg);
   backdrop-filter: blur(24px);
   border: 1px solid var(--glass-border);
-  box-shadow: 0 25px 50px -12px rgba(44, 62, 53, 0.05);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
 }
 
 @utility glass-card {
@@ -106,21 +289,21 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   &:hover {
     background-color: var(--glass-bg);
-    border-color: rgba(185, 115, 93, 0.2);
+    border-color: var(--theme-hover-border);
   }
 }
 
 @utility btn-primary {
-  background-color: #B9735D;
+  background-color: var(--theme-btn-bg);
   color: white;
   padding: 0.75rem 1.5rem;
   border-radius: 0.75rem;
   font-weight: 600;
   font-family: var(--font-sans);
   transition: all 0.2s;
-  box-shadow: 0 4px 6px -1px rgba(185, 115, 93, 0.2);
+  box-shadow: 0 4px 6px -1px var(--theme-btn-shadow);
   &:hover {
-    background-color: #A85F49;
+    background-color: var(--theme-btn-hover);
     scale: 1.01;
   }
   &:active {
@@ -130,15 +313,15 @@
 
 @utility input-field {
   background-color: var(--input-bg);
-  border: 1px solid rgba(147, 170, 160, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.15);
   border-radius: 0.75rem;
   padding: 0.75rem 1rem;
   transition: all 0.2s;
   color: var(--color-foreground);
   &:focus {
     outline: none;
-    border-color: #B9735D;
-    box-shadow: 0 0 0 2px rgba(185, 115, 93, 0.4);
+    border-color: var(--theme-btn-bg);
+    box-shadow: 0 0 0 2px var(--theme-btn-shadow);
   }
 }
 
@@ -148,9 +331,9 @@
 
 @keyframes glow {
   from {
-    filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.5));
+    filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.3));
   }
   to {
-    filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.8));
+    filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.5));
   }
 }

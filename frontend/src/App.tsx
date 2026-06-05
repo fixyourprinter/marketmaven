@@ -92,15 +92,28 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenFeedback, onOpe
   );
 };
 
-function AppContent({ onOpenSettings, isSettingsOpen, setIsSettingsOpen, theme, setTheme, ebayEnv, setEbayEnv, handleSaveSettings }: {
+function AppContent({ 
+  onOpenSettings, 
+  isSettingsOpen, 
+  setIsSettingsOpen, 
+  theme, 
+  setTheme, 
+  themePreset,
+  setThemePreset,
+  ebayEnv, 
+  setEbayEnv, 
+  handleSaveSettings 
+}: {
   onOpenSettings: () => void;
   isSettingsOpen: boolean;
   setIsSettingsOpen: (open: boolean) => void;
   theme: 'dark' | 'light';
   setTheme: (t: 'dark' | 'light') => void;
+  themePreset: 'tech' | 'botanical' | 'aurora';
+  setThemePreset: (p: 'tech' | 'botanical' | 'aurora') => void;
   ebayEnv: 'sandbox' | 'production';
   setEbayEnv: (env: 'sandbox' | 'production') => void;
-  handleSaveSettings: (t: 'dark' | 'light', env: 'sandbox' | 'production') => void;
+  handleSaveSettings: (t: 'dark' | 'light', env: 'sandbox' | 'production', preset: 'tech' | 'botanical' | 'aurora') => void;
 }) {
   const location = useLocation();
   const isMobileView = location.pathname.startsWith('/mobile');
@@ -299,15 +312,61 @@ function AppContent({ onOpenSettings, isSettingsOpen, setIsSettingsOpen, theme, 
                     {theme === 'dark' ? (
                       <>
                         <Moon size={16} />
-                        Cozy Dark
+                        Dark Mode
                       </>
                     ) : (
                       <>
                         <Sun size={16} />
-                        Bright Linen
+                        Light Mode
                       </>
                     )}
                   </button>
+                </div>
+
+                {/* Theme Preset Selector */}
+                <div className="flex flex-col bg-slate-900/50 p-4 rounded-xl border border-slate-900 gap-3">
+                  <div>
+                    <h4 className="font-semibold text-sm">Design Theme</h4>
+                    <p className="text-xs text-slate-500 mt-1">Select your colors and typography style</p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setThemePreset('tech')}
+                      className={`px-2 py-3 rounded-xl border transition-all text-xs font-bold flex flex-col items-center gap-1 cursor-pointer text-center ${
+                        themePreset === 'tech'
+                          ? 'bg-blue-500/10 text-blue-500 border-blue-500/30 shadow-sm shadow-blue-500/5'
+                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-800'
+                      }`}
+                    >
+                      <span className="text-xs font-semibold">Modern Tech</span>
+                      <span className="text-[9px] font-normal opacity-70">Cobalt / Slate</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setThemePreset('botanical')}
+                      className={`px-2 py-3 rounded-xl border transition-all text-xs font-bold flex flex-col items-center gap-1 cursor-pointer text-center ${
+                        themePreset === 'botanical'
+                          ? 'bg-orange-500/10 text-orange-500 border-orange-500/30 shadow-sm shadow-orange-500/5'
+                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-800'
+                      }`}
+                    >
+                      <span className="text-xs font-semibold">Botanical</span>
+                      <span className="text-[9px] font-normal opacity-70">Sage / Copper</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setThemePreset('aurora')}
+                      className={`px-2 py-3 rounded-xl border transition-all text-xs font-bold flex flex-col items-center gap-1 cursor-pointer text-center ${
+                        themePreset === 'aurora'
+                          ? 'bg-purple-500/10 text-purple-400 border-purple-500/30 shadow-sm shadow-purple-500/5'
+                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-800'
+                      }`}
+                    >
+                      <span className="text-xs font-semibold">Aurora</span>
+                      <span className="text-[9px] font-normal opacity-70">Indigo / Teal</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Environment Switcher */}
@@ -343,7 +402,7 @@ function AppContent({ onOpenSettings, isSettingsOpen, setIsSettingsOpen, theme, 
                   Cancel
                 </button>
                 <button 
-                  onClick={() => handleSaveSettings(theme, ebayEnv)}
+                  onClick={() => handleSaveSettings(theme, ebayEnv, themePreset)}
                   className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-500/20 text-sm transition-all cursor-pointer"
                 >
                   Save Settings
@@ -573,6 +632,7 @@ function AppContent({ onOpenSettings, isSettingsOpen, setIsSettingsOpen, theme, 
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [themePreset, setThemePreset] = useState<'tech' | 'botanical' | 'aurora'>('tech');
   const [ebayEnv, setEbayEnv] = useState<'sandbox' | 'production'>('sandbox');
   const [loadingSettings, setLoadingSettings] = useState(true);
 
@@ -584,7 +644,9 @@ function App() {
         if (response.data) {
           const loadedTheme = response.data.theme || 'dark';
           const loadedEnv = response.data.ebay_env || 'sandbox';
+          const loadedPreset = response.data.theme_preset || 'tech';
           setTheme(loadedTheme);
+          setThemePreset(loadedPreset as 'tech' | 'botanical' | 'aurora');
           setEbayEnv(loadedEnv);
           
           // Apply theme class
@@ -592,6 +654,14 @@ function App() {
             document.documentElement.classList.add('light');
           } else {
             document.documentElement.classList.remove('light');
+          }
+
+          // Apply theme preset class
+          document.documentElement.classList.remove('theme-botanical', 'theme-aurora');
+          if (loadedPreset === 'botanical') {
+            document.documentElement.classList.add('theme-botanical');
+          } else if (loadedPreset === 'aurora') {
+            document.documentElement.classList.add('theme-aurora');
           }
         }
       } catch (error) {
@@ -603,20 +673,33 @@ function App() {
     loadSettings();
   }, []);
 
-  const handleSaveSettings = async (updatedTheme: 'dark' | 'light', updatedEnv: 'sandbox' | 'production') => {
+  const handleSaveSettings = async (
+    updatedTheme: 'dark' | 'light', 
+    updatedEnv: 'sandbox' | 'production',
+    updatedPreset: 'tech' | 'botanical' | 'aurora'
+  ) => {
     try {
       await axios.post(`${API_BASE}/settings`, {
         theme: updatedTheme,
-        ebay_env: updatedEnv
+        ebay_env: updatedEnv,
+        theme_preset: updatedPreset
       });
 
       setTheme(updatedTheme);
       setEbayEnv(updatedEnv);
+      setThemePreset(updatedPreset);
 
       if (updatedTheme === 'light') {
         document.documentElement.classList.add('light');
       } else {
         document.documentElement.classList.remove('light');
+      }
+
+      document.documentElement.classList.remove('theme-botanical', 'theme-aurora');
+      if (updatedPreset === 'botanical') {
+        document.documentElement.classList.add('theme-botanical');
+      } else if (updatedPreset === 'aurora') {
+        document.documentElement.classList.add('theme-aurora');
       }
 
       alert('Settings updated successfully!');
@@ -638,6 +721,8 @@ function App() {
         setIsSettingsOpen={setIsSettingsOpen}
         theme={theme}
         setTheme={setTheme}
+        themePreset={themePreset}
+        setThemePreset={setThemePreset}
         ebayEnv={ebayEnv}
         setEbayEnv={setEbayEnv}
         handleSaveSettings={handleSaveSettings}

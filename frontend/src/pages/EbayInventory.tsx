@@ -843,7 +843,7 @@ const EbayInventory: React.FC = () => {
                   onClick={() => setBulkActionTab('manual')}
                   className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-all ${
                     bulkActionTab === 'manual' 
-                      ? 'border-[#B9735D] text-white bg-white/[0.02]' 
+                      ? 'border-blue-500 text-white bg-white/[0.02]' 
                       : 'border-transparent text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -855,7 +855,7 @@ const EbayInventory: React.FC = () => {
                   onClick={() => setBulkActionTab('ai')}
                   className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-all ${
                     bulkActionTab === 'ai' 
-                      ? 'border-[#B9735D] text-white bg-white/[0.02]' 
+                      ? 'border-blue-500 text-white bg-white/[0.02]' 
                       : 'border-transparent text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -999,7 +999,7 @@ const EbayInventory: React.FC = () => {
                     </div>
                     <button
                       onClick={runAiDiagnosis}
-                      className="px-8 py-3 bg-[#B9735D] hover:bg-[#a6624c] text-white rounded-xl font-bold shadow-lg transition-all"
+                      className="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold shadow-lg transition-all"
                     >
                       Run AI Diagnosis
                     </button>
@@ -1028,7 +1028,7 @@ const EbayInventory: React.FC = () => {
                           </div>
                           
                           {item.error && (
-                            <div className="bg-[#B9735D]/10 border border-[#B9735D]/20 text-[#B9735D] p-3 rounded-lg text-xs font-semibold leading-relaxed">
+                            <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg text-xs font-semibold leading-relaxed">
                               ⚠️ AI Diagnostic Error: {item.error}
                             </div>
                           )}
@@ -1181,7 +1181,7 @@ const EbayInventory: React.FC = () => {
                   <button 
                     disabled={!bulkValue || loading}
                     onClick={saveManualBulk}
-                    className="px-6 py-3 bg-[#B9735D] hover:bg-[#a6624c] text-white rounded-xl font-bold shadow-lg disabled:opacity-30 disabled:cursor-not-allowed px-8"
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold shadow-lg disabled:opacity-30 disabled:cursor-not-allowed px-8"
                   >
                     Apply changes to {selectedSkus.size} items
                   </button>
@@ -1189,7 +1189,7 @@ const EbayInventory: React.FC = () => {
                   <button 
                     disabled={diagnosedItems.length === 0 || loading}
                     onClick={saveAiBulk}
-                    className="px-6 py-3 bg-[#B9735D] hover:bg-[#a6624c] text-white rounded-xl font-bold shadow-lg disabled:opacity-30 disabled:cursor-not-allowed px-8"
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold shadow-lg disabled:opacity-30 disabled:cursor-not-allowed px-8"
                   >
                     Sync specifics to eBay ({diagnosedItems.length} items)
                   </button>
@@ -1223,7 +1223,7 @@ const EbayInventory: React.FC = () => {
             <input 
               type="text" 
               placeholder="Filter by title, aspects, condition, or SKU..."
-              className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:border-[#B9735D]/50 outline-none transition-all font-sans"
+              className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:border-blue-500/50 outline-none transition-all font-sans"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -1263,7 +1263,7 @@ const EbayInventory: React.FC = () => {
                       >
                         <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
                           visibleColumns[colId] 
-                            ? 'bg-[#B9735D] border-[#B9735D] text-white' 
+                            ? 'bg-blue-600 border-blue-600 text-white' 
                             : 'border-white/20'
                         }`}>
                           {visibleColumns[colId] && <span className="text-[10px] font-bold">✓</span>}
@@ -1285,7 +1285,7 @@ const EbayInventory: React.FC = () => {
             >
               <button 
                 onClick={handleBulkEdit}
-                className="px-6 py-3 bg-[#B9735D] hover:bg-[#a6624c] text-white rounded-xl font-bold shadow-lg shadow-[#B9735D]/20 transition-all"
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all"
               >
                 Bulk Action / Repair ({selectedSkus.size})
               </button>
@@ -1552,7 +1552,7 @@ const EbayInventory: React.FC = () => {
           {!loading && errorMsg && (
             <div className="py-20 text-center text-slate-400">
               <Package size={48} className="mx-auto mb-4 opacity-20 text-red-500" />
-              <p className="text-[#B9735D] font-bold mb-2">{errorMsg}</p>
+              <p className="text-red-400 font-bold mb-2">{errorMsg}</p>
               {errorMsg.toLowerCase().includes('authenticated') && (
                 <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
                   Please click the <strong className="text-slate-300">Connect eBay</strong> button in the sidebar to authorize the application for your active environment.

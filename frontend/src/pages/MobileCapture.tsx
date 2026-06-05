@@ -10,10 +10,8 @@ import {
   ArrowLeft, 
   AlertCircle, 
   RefreshCw,
-  Package,
   Layers,
   Tag,
-  Scale,
   MessageSquare,
   History
 } from 'lucide-react';
