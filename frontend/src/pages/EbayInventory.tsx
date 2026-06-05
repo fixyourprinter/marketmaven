@@ -207,7 +207,7 @@ const EbayInventory: React.FC = () => {
           specifics
         }];
 
-        await axios.post(`${API_BASE}/ebay/inventory/bulk-revise`, { items: payload });
+        await axios.post(`${API_BASE}/listings/ebay/inventory/bulk-revise`, { items: payload });
         alert('Item updated successfully on eBay!');
       } else {
         await axios.put(`${API_BASE}/ebay/inventory/${editingItem.sku}`, editingItem);
@@ -261,7 +261,7 @@ const EbayInventory: React.FC = () => {
         let cleanedSpecs: Record<string, string> = {};
         let errorMsg: string | null = null;
         try {
-          const extractRes = await axios.post('/api/ebay/inventory/bulk-repair-extract', { 
+          const extractRes = await axios.post('/api/listings/ebay/inventory/bulk-repair-extract', { 
             items: [{
               listingId: item.listingId || item.sku,
               title: item.product.title,
@@ -323,7 +323,7 @@ const EbayInventory: React.FC = () => {
         };
       });
 
-      const res = await axios.post('/api/ebay/inventory/bulk-revise', { items: payloadItems });
+      const res = await axios.post('/api/listings/ebay/inventory/bulk-revise', { items: payloadItems });
       const results = res.data.results || [];
       
       const errors = results.filter((r: any) => r.status === 'error');
@@ -351,7 +351,7 @@ const EbayInventory: React.FC = () => {
         specifics: item.specifics
       }));
 
-      const res = await axios.post('/api/ebay/inventory/bulk-revise', { items: payloadItems });
+      const res = await axios.post('/api/listings/ebay/inventory/bulk-revise', { items: payloadItems });
       const results = res.data.results || [];
       
       const errors = results.filter((r: any) => r.status === 'error');
