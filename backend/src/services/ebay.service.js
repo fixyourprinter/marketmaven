@@ -341,8 +341,8 @@ class EbayService {
               const publishedOffer = offers.find(o => o.status === 'PUBLISHED') || offers[0];
               item.listingId = publishedOffer.listingId;
               
-              if (publishedOffer.scheduledStartTime) {
-                const startTime = new Date(publishedOffer.scheduledStartTime);
+              if (publishedOffer.listingStartDate) {
+                const startTime = new Date(publishedOffer.listingStartDate);
                 if (startTime > new Date()) {
                   item.status = 'scheduled';
                 } else {
@@ -757,7 +757,7 @@ class EbayService {
           paymentPolicyId: paymentPolicyId
         },
         merchantLocationKey: locationKey,
-        scheduledStartTime: this.getNextSaturdayISO() // Schedule for Saturday
+        listingStartDate: this.getNextSaturdayISO() // Schedule for Saturday
       };
 
       const offerResponse = await axios.post(`${this.baseUrl}/sell/inventory/v1/offer`, offerBody, {
