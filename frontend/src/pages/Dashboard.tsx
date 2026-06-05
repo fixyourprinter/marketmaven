@@ -29,7 +29,7 @@ interface ListingItem {
 
 const AI_STATUS_MESSAGES = [
   "Uploading high-resolution captures...",
-  "Analyzing cover photo and silhouette...",
+  "Analyzing material tag details...",
   "Scanning size labels and tags...",
   "Reading SKU & shipping scale weight...",
   "Analyzing condition details...",
@@ -56,11 +56,11 @@ const Dashboard: React.FC = () => {
 
   // Progressive Photo States
   const [step1Images, setStep1Images] = useState<{
-    cover: File | null;
+    materialTag: File | null;
     sizeTag: File | null;
     measurements: File | null;
   }>({
-    cover: null,
+    materialTag: null,
     sizeTag: null,
     measurements: null
   });
@@ -69,7 +69,7 @@ const Dashboard: React.FC = () => {
   const [step2Status, setStep2Status] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [draftId, setDraftId] = useState<number | null>(null);
   const [dragActive, setDragActive] = useState(false);
-  const [draggedOverSlot, setDraggedOverSlot] = useState<'cover' | 'sizeTag' | 'measurements' | null>(null);
+  const [draggedOverSlot, setDraggedOverSlot] = useState<'materialTag' | 'sizeTag' | 'measurements' | null>(null);
   const [listingIds, setListingIds] = useState<Set<number>>(new Set());
 
   // Visual/UX states
@@ -77,7 +77,7 @@ const Dashboard: React.FC = () => {
   const [statusMessageIndex, setStatusMessageIndex] = useState(0);
 
   // File Input Refs
-  const coverRef = React.useRef<HTMLInputElement>(null);
+  const materialTagRef = React.useRef<HTMLInputElement>(null);
   const sizeTagRef = React.useRef<HTMLInputElement>(null);
   const measurementsRef = React.useRef<HTMLInputElement>(null);
   const additionalRef = React.useRef<HTMLInputElement>(null);
@@ -180,7 +180,7 @@ const Dashboard: React.FC = () => {
     const fileArray = Array.from(files);
     if (fileArray.length > 0) {
       setStep1Images(prev => ({
-        cover: fileArray[0] || prev.cover,
+        materialTag: fileArray[0] || prev.materialTag,
         sizeTag: fileArray[1] || prev.sizeTag,
         measurements: fileArray[2] || prev.measurements,
       }));
@@ -190,7 +190,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleFileChange = (slot: 'cover' | 'sizeTag' | 'measurements', file: File | null) => {
+  const handleFileChange = (slot: 'materialTag' | 'sizeTag' | 'measurements', file: File | null) => {
     setStep1Images(prev => ({
       ...prev,
       [slot]: file
@@ -204,11 +204,11 @@ const Dashboard: React.FC = () => {
   };
 
   const handleSendToAI = async () => {
-    if (!step1Images.cover || !step1Images.sizeTag || !step1Images.measurements) return;
+    if (!step1Images.materialTag || !step1Images.sizeTag || !step1Images.measurements) return;
 
     setStep1Status('uploading');
     const formData = new FormData();
-    formData.append('images', step1Images.cover);
+    formData.append('images', step1Images.materialTag);
     formData.append('images', step1Images.sizeTag);
     formData.append('images', step1Images.measurements);
 
@@ -252,14 +252,14 @@ const Dashboard: React.FC = () => {
   };
 
   const handleResetUploadFlow = () => {
-    setStep1Images({ cover: null, sizeTag: null, measurements: null });
+    setStep1Images({ materialTag: null, sizeTag: null, measurements: null });
     setAdditionalImages([]);
     setStep1Status('idle');
     setStep2Status('idle');
     setDraftId(null);
     setSimulatedProgress(0);
     setStatusMessageIndex(0);
-    if (coverRef.current) coverRef.current.value = '';
+    if (materialTagRef.current) materialTagRef.current.value = '';
     if (sizeTagRef.current) sizeTagRef.current.value = '';
     if (measurementsRef.current) measurementsRef.current.value = '';
     if (additionalRef.current) additionalRef.current.value = '';
@@ -284,7 +284,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleSlotDrop = (e: React.DragEvent, slot: 'cover' | 'sizeTag' | 'measurements') => {
+  const handleSlotDrop = (e: React.DragEvent, slot: 'materialTag' | 'sizeTag' | 'measurements') => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
@@ -442,11 +442,11 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
         >
           {/* Hidden inputs */}
           <input 
-            ref={coverRef}
+            ref={materialTagRef}
             type="file" 
             accept="image/*" 
             className="hidden" 
-            onChange={(e) => e.target.files && handleFileChange('cover', e.target.files[0])} 
+            onChange={(e) => e.target.files && handleFileChange('materialTag', e.target.files[0])} 
           />
           <input 
             ref={sizeTagRef}
@@ -484,29 +484,29 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                 </p>
               </div>
 
-              {/* Slot 1: Cover */}
+              {/* Slot 1: Material Tag */}
               <div 
                 onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDraggedOverSlot('cover'); }}
+                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDraggedOverSlot('materialTag'); }}
                 onDragLeave={() => setDraggedOverSlot(null)}
-                onDrop={(e) => handleSlotDrop(e, 'cover')}
+                onDrop={(e) => handleSlotDrop(e, 'materialTag')}
                 className={`relative rounded-xl border transition-all ${
-                  draggedOverSlot === 'cover' 
+                  draggedOverSlot === 'materialTag' 
                     ? 'border-blue-500 bg-blue-500/10 scale-[1.01] shadow-lg shadow-blue-500/5' 
                     : 'border-transparent'
                 }`}
               >
-                {step1Images.cover ? (
+                {step1Images.materialTag ? (
                   <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-xl">
                     <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-slate-900 border border-white/5">
-                      <img src={URL.createObjectURL(step1Images.cover)} alt="" className="w-full h-full object-cover" />
+                      <img src={URL.createObjectURL(step1Images.materialTag)} alt="" className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-slate-200 truncate">1. Cover Photo</p>
-                      <p className="text-[10px] text-slate-500 truncate">{step1Images.cover.name}</p>
+                      <p className="text-xs font-bold text-slate-200 truncate">1. Material Tag</p>
+                      <p className="text-[10px] text-slate-500 truncate">{step1Images.materialTag.name}</p>
                     </div>
                     <button 
-                      onClick={() => handleFileChange('cover', null)}
+                      onClick={() => handleFileChange('materialTag', null)}
                       className="p-1 hover:text-red-400 hover:bg-white/5 rounded transition-all cursor-pointer"
                     >
                       <X size={16} />
@@ -514,15 +514,15 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                   </div>
                 ) : (
                   <button 
-                    onClick={() => coverRef.current?.click()}
+                    onClick={() => materialTagRef.current?.click()}
                     className="w-full flex items-center gap-3 p-3.5 border border-dashed border-white/10 hover:border-blue-500/30 bg-white/[0.01] hover:bg-white/[0.03] rounded-xl text-left transition-all group cursor-pointer"
                   >
                     <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0 border border-blue-500/20 group-hover:scale-105 transition-transform">
-                      <Camera className="text-blue-400" size={16} />
+                      <Tag className="text-blue-400" size={16} />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-200">1. Cover Photo</p>
-                      <p className="text-[9px] text-slate-500 mt-0.5">Front side centered view</p>
+                      <p className="text-xs font-bold text-slate-200">1. Material Tag</p>
+                      <p className="text-[9px] text-slate-500 mt-0.5">Fabric contents, material labels & origin</p>
                     </div>
                   </button>
                 )}
@@ -625,9 +625,9 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
               {/* Submit to AI */}
               <button 
                 onClick={handleSendToAI}
-                disabled={!step1Images.cover || !step1Images.sizeTag || !step1Images.measurements}
+                disabled={!step1Images.materialTag || !step1Images.sizeTag || !step1Images.measurements}
                 className={`w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 border text-sm shadow-md transition-all ${
-                  (step1Images.cover && step1Images.sizeTag && step1Images.measurements)
+                  (step1Images.materialTag && step1Images.sizeTag && step1Images.measurements)
                     ? 'bg-blue-500 hover:bg-blue-600 text-white border-blue-600 cursor-pointer shadow-blue-500/10 active:scale-[0.99]'
                     : 'bg-white/5 text-slate-500 border-white/5 opacity-50 cursor-not-allowed'
                 }`}

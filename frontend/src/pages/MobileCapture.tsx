@@ -21,14 +21,14 @@ import {
 const API_BASE = '/api';
 
 type Step1Images = {
-  cover: File | null;
+  materialTag: File | null;
   sizeTag: File | null;
   measurements: File | null;
 };
 
 const AI_STATUS_MESSAGES = [
   "Uploading high-resolution captures...",
-  "Analyzing cover photo and garment silhouette...",
+  "Analyzing material tag details...",
   "Scanning brand label and size tag markings...",
   "Reading SKU & shipping scale weight...",
   "Extracting fabric material composition...",
@@ -49,7 +49,7 @@ export default function MobileCapture({ onOpenFeedback, onOpenVersionNotes }: Mo
   // State
   const [phase, setPhase] = useState<1 | 2 | 3>(1);
   const [step1Images, setStep1Images] = useState<Step1Images>({
-    cover: null,
+    materialTag: null,
     sizeTag: null,
     measurements: null,
   });
@@ -67,7 +67,7 @@ export default function MobileCapture({ onOpenFeedback, onOpenVersionNotes }: Mo
   const [simulatedProgress, setSimulatedProgress] = useState(0);
 
   // File Input Refs
-  const coverInputRef = useRef<HTMLInputElement>(null);
+  const materialTagInputRef = useRef<HTMLInputElement>(null);
   const sizeTagInputRef = useRef<HTMLInputElement>(null);
   const measurementsInputRef = useRef<HTMLInputElement>(null);
   const additionalInputRef = useRef<HTMLInputElement>(null);
@@ -109,13 +109,13 @@ export default function MobileCapture({ onOpenFeedback, onOpenVersionNotes }: Mo
   }, [step1Status]);
 
   // Handle slot camera triggers
-  const triggerCamera = (slot: 'cover' | 'sizeTag' | 'measurements') => {
-    if (slot === 'cover') coverInputRef.current?.click();
+  const triggerCamera = (slot: 'materialTag' | 'sizeTag' | 'measurements') => {
+    if (slot === 'materialTag') materialTagInputRef.current?.click();
     if (slot === 'sizeTag') sizeTagInputRef.current?.click();
     if (slot === 'measurements') measurementsInputRef.current?.click();
   };
 
-  const handleFileChange = (slot: 'cover' | 'sizeTag' | 'measurements', e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (slot: 'materialTag' | 'sizeTag' | 'measurements', e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setStep1Images(prev => ({
         ...prev,
@@ -124,13 +124,13 @@ export default function MobileCapture({ onOpenFeedback, onOpenVersionNotes }: Mo
     }
   };
 
-  const removeImage = (slot: 'cover' | 'sizeTag' | 'measurements') => {
+  const removeImage = (slot: 'materialTag' | 'sizeTag' | 'measurements') => {
     setStep1Images(prev => ({
       ...prev,
       [slot]: null
     }));
     // Reset the input value so the same file can be selected again
-    if (slot === 'cover' && coverInputRef.current) coverInputRef.current.value = '';
+    if (slot === 'materialTag' && materialTagInputRef.current) materialTagInputRef.current.value = '';
     if (slot === 'sizeTag' && sizeTagInputRef.current) sizeTagInputRef.current.value = '';
     if (slot === 'measurements' && measurementsInputRef.current) measurementsInputRef.current.value = '';
   };
@@ -160,13 +160,13 @@ export default function MobileCapture({ onOpenFeedback, onOpenVersionNotes }: Mo
 
   // Start Step 1 AI Processing Upload
   const handleSendToAI = async () => {
-    if (!step1Images.cover || !step1Images.sizeTag || !step1Images.measurements) return;
+    if (!step1Images.materialTag || !step1Images.sizeTag || !step1Images.measurements) return;
 
     setStep1Status('uploading');
     setPhase(2); // Go to phase 2 immediately so user can take remaining photos
 
     const formData = new FormData();
-    formData.append('images', step1Images.cover);
+    formData.append('images', step1Images.materialTag);
     formData.append('images', step1Images.sizeTag);
     formData.append('images', step1Images.measurements);
 
@@ -227,7 +227,7 @@ export default function MobileCapture({ onOpenFeedback, onOpenVersionNotes }: Mo
   // Reset the capture states for a new item
   const handleReset = () => {
     setPhase(1);
-    setStep1Images({ cover: null, sizeTag: null, measurements: null });
+    setStep1Images({ materialTag: null, sizeTag: null, measurements: null });
     setAdditionalImages([]);
     setStep1Status('idle');
     setStep2Status('idle');
@@ -238,25 +238,25 @@ export default function MobileCapture({ onOpenFeedback, onOpenVersionNotes }: Mo
     setStatusMessageIndex(0);
     
     // Reset file elements
-    if (coverInputRef.current) coverInputRef.current.value = '';
+    if (materialTagInputRef.current) materialTagInputRef.current.value = '';
     if (sizeTagInputRef.current) sizeTagInputRef.current.value = '';
     if (measurementsInputRef.current) measurementsInputRef.current.value = '';
     if (additionalInputRef.current) additionalInputRef.current.value = '';
   };
 
   // Check if first 3 are fully captured
-  const isStep1Complete = step1Images.cover && step1Images.sizeTag && step1Images.measurements;
+  const isStep1Complete = step1Images.materialTag && step1Images.sizeTag && step1Images.measurements;
 
   return (
     <div className="w-full min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans relative overflow-x-hidden selection:bg-blue-500 selection:text-white">
       {/* Hidden inputs */}
       <input 
-        ref={coverInputRef}
+        ref={materialTagInputRef}
         type="file" 
         accept="image/*" 
         capture="environment" 
         className="hidden" 
-        onChange={(e) => handleFileChange('cover', e)} 
+        onChange={(e) => handleFileChange('materialTag', e)} 
       />
       <input 
         ref={sizeTagInputRef}
@@ -358,22 +358,22 @@ export default function MobileCapture({ onOpenFeedback, onOpenVersionNotes }: Mo
             {/* Photo Slots */}
             <div className="space-y-4 py-2">
               
-              {/* Slot 1: Cover Photo */}
+              {/* Slot 1: Material Tag */}
               <div className="relative">
-                {step1Images.cover ? (
+                {step1Images.materialTag ? (
                   <div className="relative h-44 rounded-xl border border-slate-800 overflow-hidden bg-slate-900 group">
                     <img 
-                      src={URL.createObjectURL(step1Images.cover)} 
-                      alt="Cover preview" 
+                      src={URL.createObjectURL(step1Images.materialTag)} 
+                      alt="Material Tag preview" 
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-3.5 flex items-end justify-between">
-                      <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                        <Package size={14} className="text-blue-400" />
-                        1. Cover Photo
+                      <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                        <Tag size={14} className="text-blue-400" />
+                        1. Material Tag
                       </span>
                       <button 
-                        onClick={() => removeImage('cover')}
+                        onClick={() => removeImage('materialTag')}
                         className="p-1.5 bg-black/60 hover:bg-red-600/80 text-white rounded-lg transition-colors border border-white/10"
                       >
                         <X size={16} />
@@ -382,14 +382,14 @@ export default function MobileCapture({ onOpenFeedback, onOpenVersionNotes }: Mo
                   </div>
                 ) : (
                   <button 
-                    onClick={() => triggerCamera('cover')}
-                    className="w-full h-40 border-2 border-dashed border-slate-800 hover:border-blue-500/50 bg-slate-900/40 hover:bg-slate-900/80 rounded-xl flex flex-col items-center justify-center p-4 transition-all group"
+                    onClick={() => triggerCamera('materialTag')}
+                    className="w-full h-40 border-2 border-dashed border-slate-800 hover:border-blue-500/50 bg-slate-900/40 hover:bg-slate-900/80 rounded-xl flex flex-col items-center justify-center p-4 transition-all group cursor-pointer"
                   >
                     <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
-                      <Camera className="text-blue-400" size={24} />
+                      <Tag className="text-blue-400" size={24} />
                     </div>
-                    <span className="text-sm font-bold text-slate-200">1. Cover Photo</span>
-                    <span className="text-xs text-slate-500 mt-1">Clear, centered shot of front of the item</span>
+                    <span className="text-sm font-bold text-slate-200">1. Material Tag</span>
+                    <span className="text-xs text-slate-500 mt-1">Fabric contents, material labels & origin</span>
                   </button>
                 )}
               </div>

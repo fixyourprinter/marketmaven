@@ -12,7 +12,7 @@ async function processImages(imagePaths) {
     });
 
     const prompt = `
-      Analyze these images of a clothing item. The images include a cover shot, a size/brand tag shot, and a third shot showing the item's weight (e.g., on a shipping scale) and its SKU barcode label.
+      Analyze these images of a clothing item. The images include a material tag shot (fabric contents & origin), a size/brand tag shot, and a third shot showing the item's weight (e.g., on a shipping scale) and its SKU barcode label.
       Extract information following these rules and return a JSON object:
 
       RULES:
