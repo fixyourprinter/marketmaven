@@ -365,7 +365,9 @@ router.post('/import-comps', async (req, res) => {
         size,
         material,
         country_of_origin: country,
-        style_details: styleDetails
+        style_details: styleDetails,
+        description: details.description,
+        specifics: details.specifics
       });
     }
   } catch (error) {

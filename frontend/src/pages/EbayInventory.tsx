@@ -225,69 +225,67 @@ const EbayInventory: React.FC = () => {
     setBulkProgress("Loading item details from eBay...");
     try {
       const selectedItemsList = items.filter(item => selectedSkus.has(item.sku));
-      const itemsWithDetails = [];
+      const diagnosed = [];
       
       let count = 0;
       for (const item of selectedItemsList) {
         count++;
-        setBulkProgress(`Fetching details for item ${count} of ${selectedItemsList.length}...`);
-        if (item.product.description) {
-          itemsWithDetails.push(item);
-        } else if (item.listingId) {
+        const titleSnippet = item.product.title.substring(0, 30) + (item.product.title.length > 30 ? "..." : "");
+        setBulkProgress(`[${count}/${selectedItemsList.length}] Fetching description for "${titleSnippet}"`);
+        
+        let description = item.product.description || '';
+        let originalSpecifics = item.product.aspects || {};
+        
+        if (!description && item.listingId) {
           try {
             const detailRes = await axios.post('/api/listings/import-comps', { itemId: item.listingId });
-            itemsWithDetails.push({
-              ...item,
-              product: {
-                ...item.product,
-                description: detailRes.data.description,
-                aspects: detailRes.data.specifics
+            description = detailRes.data.description || '';
+            
+            const formatted: Record<string, string[]> = {};
+            if (detailRes.data.specifics) {
+              for (const [k, v] of Object.entries(detailRes.data.specifics)) {
+                formatted[k] = [String(v)];
               }
-            });
+            }
+            originalSpecifics = formatted;
           } catch (err) {
             console.error(`Failed to fetch details for ${item.listingId}`);
-            itemsWithDetails.push({
-              ...item,
-              product: {
-                ...item.product,
-                description: '',
-                aspects: {}
-              }
-            });
           }
         }
-      }
 
-      setBulkProgress("Running AI aspect analysis on descriptions...");
-      const repairPayload = itemsWithDetails.map(i => ({
-        listingId: i.listingId || i.sku,
-        title: i.product.title,
-        description: i.product.description || ''
-      }));
-
-      const extractRes = await axios.post('/api/ebay/inventory/bulk-repair-extract', { items: repairPayload });
-      
-      const results = extractRes.data.results;
-      const diagnosed = itemsWithDetails.map(item => {
-        const match = results.find((r: any) => r.listingId === item.listingId);
-        const extractedSpecs = match?.status === 'success' ? match.specifics : {};
+        setBulkProgress(`[${count}/${selectedItemsList.length}] Running AI Diagnosis on "${titleSnippet}"`);
         
-        const cleanedSpecs: Record<string, string> = {};
-        if (extractedSpecs) {
-          for (const [k, v] of Object.entries(extractedSpecs)) {
-            cleanedSpecs[k] = v === null ? '' : String(v);
+        let cleanedSpecs: Record<string, string> = {};
+        try {
+          const extractRes = await axios.post('/api/ebay/inventory/bulk-repair-extract', { 
+            items: [{
+              listingId: item.listingId || item.sku,
+              title: item.product.title,
+              description: description
+            }]
+          });
+          
+          const match = extractRes.data.results?.[0];
+          const extractedSpecs = match?.status === 'success' ? match.specifics : {};
+          
+          if (extractedSpecs) {
+            for (const [k, v] of Object.entries(extractedSpecs)) {
+              cleanedSpecs[k] = v === null ? '' : String(v);
+            }
           }
+        } catch (aiErr) {
+          console.error(`AI Extraction failed for item ${item.sku}`);
         }
 
-        return {
+        diagnosed.push({
           sku: item.sku,
           listingId: item.listingId,
           title: item.product.title,
-          description: item.product.description,
-          originalSpecifics: item.product.aspects || {},
+          description: description,
+          originalSpecifics,
           specifics: cleanedSpecs
-        };
-      });
+        });
+      }
 
       setDiagnosedItems(diagnosed);
       setBulkProgress(null);
