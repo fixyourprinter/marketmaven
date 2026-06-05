@@ -91,7 +91,11 @@ const db = new sqlite3.Database(dbPath, (err) => {
               const finalState = (isDuplicate || targetState === 'closed') ? 'closed' : 'open';
               const finalTitle = isDuplicate ? `[DUPLICATE CLOSED] ${issue.title}` : targetTitle;
 
-              const needsUpdate = issue.title !== finalTitle || issue.state.toLowerCase() !== finalState;
+              const normalizedGitBody = (issue.body || '').replace(/\r\n/g, '\n');
+              const normalizedTargetBody = targetBody.replace(/\r\n/g, '\n');
+              const needsUpdate = issue.title !== finalTitle || 
+                                  issue.state.toLowerCase() !== finalState || 
+                                  normalizedGitBody !== normalizedTargetBody;
 
               if (needsUpdate) {
                 try {
@@ -99,6 +103,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     `https://api.github.com/repos/${repoOwner}/${repoName}/issues/${issue.number}`,
                     {
                       title: finalTitle,
+                      body: targetBody,
                       state: finalState
                     },
                     {
