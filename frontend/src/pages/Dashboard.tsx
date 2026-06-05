@@ -37,11 +37,19 @@ const AI_STATUS_MESSAGES = [
   "Drafting final listing description..."
 ];
 
+const COMMON_SIZES = [
+  'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL',
+  '0', '2', '4', '6', '8', '10', '12', '14', '16', '18', '20',
+  '28', '29', '30', '31', '32', '33', '34', '36', '38', '40', '42',
+  'One Size', 'N/A'
+];
+
 const Dashboard: React.FC = () => {
   const [items, setItems] = useState<ListingItem[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [editingDraftId, setEditingDraftId] = useState<number | null>(null);
   const [editingDraftData, setEditingDraftData] = useState<Partial<ListingItem>>({});
+  const [customSizeMode, setCustomSizeMode] = useState(false);
   const [importItemId, setImportItemId] = useState<string>('');
   const [isImporting, setIsImporting] = useState<boolean>(false);
   const [importError, setImportError] = useState<string>('');
@@ -378,6 +386,8 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
         const updatedItem = response.data.item;
         setItems(items.map(item => item.id === draftId ? updatedItem : item));
         setEditingDraftData(updatedItem);
+        const sizeVal = updatedItem.size || '';
+        setCustomSizeMode(sizeVal !== '' && !COMMON_SIZES.includes(sizeVal));
         setImportItemId('');
         alert('Details imported successfully from sold comp!');
       } else {
@@ -945,6 +955,8 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                                           e.stopPropagation(); 
                                           setEditingDraftId(item.id); 
                                           setEditingDraftData(item); 
+                                          const sizeVal = item.size || '';
+                                          setCustomSizeMode(sizeVal !== '' && !COMMON_SIZES.includes(sizeVal));
                                           setImportItemId('');
                                           setImportError('');
                                         }}
@@ -1077,14 +1089,45 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                                               />
                                             </div>
                                             <div>
-                                              <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-1">Size</label>
-                                              <input 
-                                                type="text"
-                                                className="w-full bg-black/40 border border-white/10 rounded-lg p-3 outline-none text-sm text-slate-200 focus:border-blue-500/50"
-                                                value={editingDraftData.size || ''}
-                                                onChange={(e) => setEditingDraftData({...editingDraftData, size: e.target.value})}
-                                              />
-                                            </div>
+                                               <div className="flex justify-between items-center mb-1">
+                                                 <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block">Size</label>
+                                                 <button 
+                                                   type="button"
+                                                   onClick={() => setCustomSizeMode(!customSizeMode)}
+                                                   className="text-[10px] text-blue-400 hover:text-white font-semibold transition-colors cursor-pointer"
+                                                 >
+                                                   {customSizeMode ? "Choose from List" : "Type manually"}
+                                                 </button>
+                                               </div>
+                                               {customSizeMode ? (
+                                                 <input 
+                                                   type="text"
+                                                   className="w-full bg-black/40 border border-white/10 rounded-lg p-3 outline-none text-sm text-slate-200 focus:border-blue-500/50 font-sans"
+                                                   placeholder="Type size manually..."
+                                                   value={editingDraftData.size || ''}
+                                                   onChange={(e) => setEditingDraftData({...editingDraftData, size: e.target.value})}
+                                                 />
+                                               ) : (
+                                                 <select
+                                                   className="w-full bg-[#151a18] border border-white/10 rounded-lg p-3 outline-none text-sm text-slate-200 focus:border-blue-500/50 font-sans"
+                                                   value={editingDraftData.size || ''}
+                                                   onChange={(e) => {
+                                                     const val = e.target.value;
+                                                     if (val === 'other') {
+                                                       setCustomSizeMode(true);
+                                                     } else {
+                                                       setEditingDraftData({...editingDraftData, size: val});
+                                                     }
+                                                   }}
+                                                 >
+                                                   <option value="">-- Select Size --</option>
+                                                   {COMMON_SIZES.map(s => (
+                                                     <option key={s} value={s}>{s}</option>
+                                                   ))}
+                                                   <option value="other">Other (Type manually)...</option>
+                                                 </select>
+                                               )}
+                                             </div>
                                           </div>
                                           <div>
                                             <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-1">2. Condition</label>

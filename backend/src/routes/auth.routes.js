@@ -203,11 +203,61 @@ router.post('/feedback/:id/resolve', (req, res) => {
   db.run(
     "UPDATE feedback SET status = 'resolved' WHERE id = ?",
     [id],
-    function(err) {
+    async function(err) {
       if (err) {
         console.error(err);
         return res.status(500).json({ error: 'Database error updating feedback' });
       }
+
+      // Automatically close the issue on GitHub if GITHUB_TOKEN is configured
+      if (process.env.GITHUB_TOKEN) {
+        try {
+          const repoOwner = 'fixyourprinter';
+          const repoName = 'marketmaven';
+          const token = process.env.GITHUB_TOKEN;
+          
+          // Fetch open issues starting with [Wife Feedback #ID]
+          const gitResponse = await axios.get(
+            `https://api.github.com/repos/${repoOwner}/${repoName}/issues?state=open&per_page=100`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/vnd.github+json',
+                'User-Agent': 'MarketMaven-App'
+              }
+            }
+          );
+          
+          const matchingIssues = gitResponse.data.filter(issue => 
+            issue.title.startsWith(`[Wife Feedback #${id}]`)
+          );
+          
+          for (const issue of matchingIssues) {
+            const resolvedTitle = issue.title.includes('(✅ Resolved)') 
+              ? issue.title 
+              : `${issue.title} (✅ Resolved)`;
+              
+            await axios.patch(
+              `https://api.github.com/repos/${repoOwner}/${repoName}/issues/${issue.number}`,
+              {
+                state: 'closed',
+                title: resolvedTitle
+              },
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  Accept: 'application/vnd.github+json',
+                  'User-Agent': 'MarketMaven-App'
+                }
+              }
+            );
+            console.log(`Successfully closed GitHub issue #${issue.number} on resolve`);
+          }
+        } catch (gitErr) {
+          console.error('Failed to close GitHub issue on resolve:', gitErr.response?.data || gitErr.message);
+        }
+      }
+
       res.json({ status: 'success' });
     }
   );

@@ -51,6 +51,13 @@ const COMMON_COUNTRIES = [
   "Unknown"
 ];
 
+const COMMON_SIZES = [
+  'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL',
+  '0', '2', '4', '6', '8', '10', '12', '14', '16', '18', '20',
+  '28', '29', '30', '31', '32', '33', '34', '36', '38', '40', '42',
+  'One Size', 'N/A'
+];
+
 const EbayInventory: React.FC = () => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,6 +65,7 @@ const EbayInventory: React.FC = () => {
   const [selectedSkus, setSelectedSkus] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [customCountryMode, setCustomCountryMode] = useState(false);
+  const [customSizeMode, setCustomSizeMode] = useState(false);
 
   const fetchInventory = async () => {
     setLoading(true);
@@ -118,6 +126,8 @@ const EbayInventory: React.FC = () => {
   const handleEdit = (item: InventoryItem) => {
     const val = item.product?.aspects?.['Country/Region of Manufacture']?.[0] || '';
     setCustomCountryMode(val !== '' && !COMMON_COUNTRIES.includes(val));
+    const sizeVal = item.product?.aspects?.Size?.[0] || '';
+    setCustomSizeMode(sizeVal !== '' && !COMMON_SIZES.includes(sizeVal));
     setEditingItem(JSON.parse(JSON.stringify(item)));
     setIsBulkEdit(false);
     setIsEditModalOpen(true);
@@ -125,6 +135,7 @@ const EbayInventory: React.FC = () => {
 
   const handleBulkEdit = () => {
     setCustomCountryMode(false);
+    setCustomSizeMode(false);
     setEditingItem({
       sku: 'BULK',
       product: { title: '', aspects: {} },
@@ -143,6 +154,9 @@ const EbayInventory: React.FC = () => {
         const updatedAspects: Record<string, string[]> = {};
         if (editingItem.product?.aspects?.Brand?.[0]) {
           updatedAspects.Brand = [editingItem.product.aspects.Brand[0]];
+        }
+        if (editingItem.product?.aspects?.Size?.[0]) {
+          updatedAspects.Size = [editingItem.product.aspects.Size[0]];
         }
         if (editingItem.product?.aspects?.['Country/Region of Manufacture']?.[0]) {
           updatedAspects['Country/Region of Manufacture'] = [editingItem.product.aspects['Country/Region of Manufacture'][0]];
@@ -238,6 +252,66 @@ const EbayInventory: React.FC = () => {
                   </div>
                   <div>
                     <div className="flex justify-between items-center mb-2">
+                      <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block">Size</label>
+                      <button 
+                        type="button"
+                        onClick={() => setCustomSizeMode(!customSizeMode)}
+                        className="text-[10px] text-blue-400 hover:text-white font-semibold transition-colors cursor-pointer"
+                      >
+                        {customSizeMode ? "Choose from List" : "Type manually"}
+                      </button>
+                    </div>
+                    {customSizeMode ? (
+                      <input 
+                        className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                        placeholder={isBulkEdit ? "New size for all..." : "Type size manually..."}
+                        value={editingItem.product?.aspects?.Size?.[0] || ''}
+                        onChange={(e) => setEditingItem({
+                          ...editingItem, 
+                          product: {
+                            ...editingItem.product, 
+                            aspects: {
+                              ...(editingItem.product?.aspects || {}), 
+                              Size: [e.target.value]
+                            }
+                          }
+                        })}
+                      />
+                    ) : (
+                      <select
+                        className="w-full bg-[#151a18] border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
+                        value={editingItem.product?.aspects?.Size?.[0] || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === 'other') {
+                            setCustomSizeMode(true);
+                          } else {
+                            setEditingItem({
+                              ...editingItem, 
+                              product: {
+                                ...editingItem.product, 
+                                aspects: {
+                                  ...(editingItem.product?.aspects || {}), 
+                                  Size: val ? [val] : []
+                                }
+                              }
+                            });
+                          }
+                        }}
+                      >
+                        <option value="">-- Select Size --</option>
+                        {COMMON_SIZES.map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                        <option value="other">Other (Type manually)...</option>
+                      </select>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
                       <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block">Country of Origin</label>
                       <button 
                         type="button"
@@ -250,7 +324,7 @@ const EbayInventory: React.FC = () => {
                     {customCountryMode ? (
                       <input 
                         className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans text-slate-200"
-                        placeholder="Type country of origin manually..."
+                        placeholder={isBulkEdit ? "New country for all..." : "Type country of origin manually..."}
                         value={editingItem.product?.aspects?.['Country/Region of Manufacture']?.[0] || ''}
                         onChange={(e) => setEditingItem({
                           ...editingItem, 
