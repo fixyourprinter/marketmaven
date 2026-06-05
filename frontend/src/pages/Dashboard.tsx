@@ -149,6 +149,20 @@ const Dashboard: React.FC = () => {
     fetchFeedback();
   }, []);
 
+  // Poll for background AI processing items
+  useEffect(() => {
+    let interval: any = null;
+    const hasProcessing = items.some(item => item.status === 'processing');
+    if (hasProcessing) {
+      interval = setInterval(() => {
+        fetchItems();
+      }, 5000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [items]);
+
   const handleDroppedFiles = (files: FileList) => {
     const fileArray = Array.from(files);
     if (fileArray.length > 0) {
@@ -841,9 +855,20 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                             </div>
                           </td>
                           <td className="py-6">
-                            <span className="px-2 py-1 rounded-full text-[10px] font-bold uppercase bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
-                              {item.status}
-                            </span>
+                            {item.status === 'processing' ? (
+                              <span className="px-2 py-1 rounded-full text-[10px] font-bold uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center gap-1.5 w-fit animate-pulse">
+                                <RefreshCw className="animate-spin" size={10} />
+                                processing
+                              </span>
+                            ) : item.status === 'error' ? (
+                              <span className="px-2 py-1 rounded-full text-[10px] font-bold uppercase bg-red-500/10 text-red-400 border border-red-500/20">
+                                error
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 rounded-full text-[10px] font-bold uppercase bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
+                                {item.status}
+                              </span>
+                            )}
                           </td>
                           <td className="py-6 text-right">
                             <div className="flex justify-end gap-2">
@@ -871,17 +896,22 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                                   <div className="absolute top-6 right-6 flex gap-3">
                                     <button 
                                       onClick={(e) => { e.stopPropagation(); copyToClipboard(item); }}
-                                      className="p-2 glass rounded-lg hover:bg-blue-500/20 hover:text-blue-400 transition-all flex items-center gap-2 text-xs font-semibold border border-white/5"
+                                      disabled={item.status === 'processing' || item.status === 'error'}
+                                      className={`p-2 glass rounded-lg transition-all flex items-center gap-2 text-xs font-semibold border border-white/5 ${
+                                        (item.status === 'processing' || item.status === 'error')
+                                          ? 'opacity-50 cursor-not-allowed'
+                                          : 'hover:bg-blue-500/20 hover:text-blue-400 cursor-pointer'
+                                      }`}
                                     >
                                       <Copy size={16} />
                                       Copy Template
                                     </button>
                                     <button 
                                       onClick={(e) => { e.stopPropagation(); handleEbayList(item.id); }}
-                                      disabled={listingIds.has(item.id)}
+                                      disabled={listingIds.has(item.id) || item.status === 'processing' || item.status === 'error'}
                                       className={`p-2 rounded-lg text-white transition-all flex items-center gap-2 text-xs font-semibold shadow-lg ${
-                                        listingIds.has(item.id)
-                                          ? 'bg-blue-600/50 cursor-not-allowed opacity-70'
+                                        (listingIds.has(item.id) || item.status === 'processing' || item.status === 'error')
+                                          ? 'bg-blue-600/50 cursor-not-allowed opacity-50'
                                           : 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/20 cursor-pointer'
                                       }`}
                                     >
@@ -889,6 +919,11 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                                         <>
                                           <RefreshCw size={16} className="animate-spin" />
                                           Listing...
+                                        </>
+                                      ) : item.status === 'processing' ? (
+                                        <>
+                                          <RefreshCw size={16} className="animate-spin" />
+                                          Processing...
                                         </>
                                       ) : (
                                         <>
@@ -898,6 +933,27 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                                       )}
                                     </button>
                                   </div>
+                                  
+                                  {item.status === 'processing' && (
+                                    <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/20 flex items-center gap-3 animate-pulse">
+                                      <RefreshCw size={18} className="text-blue-400 animate-spin flex-shrink-0" />
+                                      <div className="text-xs">
+                                        <span className="font-bold text-white block">Visual AI Agent is analyzing this item</span>
+                                        <span className="text-slate-400 font-sans">Extracting specifications, dimensions, brand tags, and generating descriptions. It will complete in 60-90 seconds.</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {item.status === 'error' && (
+                                    <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/20 flex items-center gap-3">
+                                      <X size={18} className="text-red-400 flex-shrink-0" />
+                                      <div className="text-xs">
+                                        <span className="font-bold text-white block">AI Processing Failed</span>
+                                        <span className="text-slate-400 font-sans">Please make sure the Ollama server is running and connected. You can delete this item and try uploading again.</span>
+                                      </div>
+                                    </div>
+                                  )}
+
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="space-y-4">
                                       <div>

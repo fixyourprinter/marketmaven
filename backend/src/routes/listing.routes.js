@@ -36,41 +36,66 @@ router.post('/process', upload.array('images', 10), async (req, res) => {
     }
 
     const filePaths = files.map(file => file.path);
-    
-    // Process with AI
-    const aiResult = await processImages(filePaths);
-
-    // Save to database as a draft
     const imagesJson = JSON.stringify(filePaths);
-    
+
+    // Save item details draft with 'processing' status and respond immediately
     db.run(
       `INSERT INTO items (
-        title, condition, material, measurements_note, style_details, 
-        country_of_origin, age, retail_price, etsy_tags, 
-        brand, weight, inventory_code, category, images
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        aiResult.title,
-        aiResult.condition,
-        aiResult.material,
-        aiResult.measurements_note,
-        aiResult.style_details,
-        aiResult.country_of_origin,
-        aiResult.age,
-        aiResult.retail_price,
-        aiResult.etsy_tags,
-        aiResult.brand,
-        aiResult.weight,
-        aiResult.inventory_code,
-        aiResult.category,
-        imagesJson
-      ],
+        title, status, images
+      ) VALUES (?, ?, ?)`,
+      ['AI Analysis in progress...', 'processing', imagesJson],
       function(err) {
         if (err) {
           console.error(err);
           return res.status(500).json({ error: 'Database error' });
         }
-        res.json({ id: this.lastID, ...aiResult, images: filePaths });
+        const newItemId = this.lastID;
+
+        // Respond immediately so user can continue using the app
+        res.json({ id: newItemId, status: 'processing', title: 'AI Analysis in progress...', images: filePaths });
+
+        // Run the AI analysis in the background
+        processImages(filePaths)
+          .then((aiResult) => {
+            db.run(
+              `UPDATE items SET 
+                title = ?, condition = ?, material = ?, measurements_note = ?, 
+                style_details = ?, country_of_origin = ?, age = ?, retail_price = ?, 
+                etsy_tags = ?, brand = ?, weight = ?, inventory_code = ?, category = ?, 
+                status = 'draft'
+               WHERE id = ?`,
+              [
+                aiResult.title,
+                aiResult.condition,
+                aiResult.material,
+                aiResult.measurements_note,
+                aiResult.style_details,
+                aiResult.country_of_origin,
+                aiResult.age,
+                aiResult.retail_price,
+                aiResult.etsy_tags,
+                aiResult.brand,
+                aiResult.weight,
+                aiResult.inventory_code || `LM-${newItemId}`,
+                aiResult.category,
+                newItemId
+              ],
+              (updateErr) => {
+                if (updateErr) {
+                  console.error(`Failed to update item #${newItemId} with AI results:`, updateErr.message);
+                } else {
+                  console.log(`[AI] Background processing completed successfully for item #${newItemId}`);
+                }
+              }
+            );
+          })
+          .catch((aiError) => {
+            console.error(`[AI] Background processing failed for item #${newItemId}:`, aiError.message);
+            db.run(
+              "UPDATE items SET title = 'AI Processing Failed. Please try again.', status = 'error' WHERE id = ?",
+              [newItemId]
+            );
+          });
       }
     );
 

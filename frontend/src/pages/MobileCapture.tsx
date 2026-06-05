@@ -684,55 +684,76 @@ export default function MobileCapture({ onOpenFeedback, onOpenVersionNotes }: Mo
               </div>
               
               <div className="space-y-1">
-                <h2 className="text-2xl font-serif font-bold text-white">Item Draft Created!</h2>
-                <p className="text-xs text-slate-400 font-medium">
-                  Draft ID: #{draftId} • Successfully saved to SQLite db
+                <h2 className="text-2xl font-serif font-bold text-white">
+                  {aiResult.status === 'processing' ? 'Item Queue Success!' : 'Item Draft Created!'}
+                </h2>
+                <p className="text-xs text-slate-400 font-medium font-sans">
+                  {aiResult.status === 'processing' 
+                    ? `Draft ID: #${draftId} • Saved to queue for background analysis` 
+                    : `Draft ID: #${draftId} • Successfully saved to SQLite db`}
                 </p>
               </div>
             </div>
 
-            {/* Extracted Details Summary */}
-            <div className="bg-slate-900/60 border border-slate-850 rounded-xl p-5 space-y-4">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-800/80 pb-2">
-                AI Extracted Summary
-              </h3>
-              
-              <div className="space-y-3">
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Suggested Title</label>
-                  <p className="text-sm font-semibold text-white mt-0.5 leading-tight">{aiResult.title || "N/A"}</p>
+            {/* Extracted Details Summary or Background Notice */}
+            {aiResult.status === 'processing' ? (
+              <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 text-center space-y-4 relative overflow-hidden">
+                <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 mx-auto text-blue-400">
+                  <RefreshCw className="animate-spin" size={24} />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Brand</label>
-                    <p className="text-sm font-bold text-slate-200 mt-0.5">{aiResult.brand || "N/A"}</p>
-                  </div>
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Category</label>
-                    <p className="text-sm font-bold text-slate-200 mt-0.5">{aiResult.category || "N/A"}</p>
-                  </div>
+                <div className="space-y-2">
+                  <h3 className="text-sm font-serif font-bold text-white">AI Analysis Running in Background</h3>
+                  <p className="text-xs text-slate-300 leading-relaxed max-w-sm mx-auto font-sans">
+                    The Big Three photos are successfully uploaded and are being processed by the visual AI agent.
+                  </p>
+                  <p className="text-[11px] text-blue-400/90 font-semibold font-sans mt-2">
+                    The Big Three are being analyzed. You can start your next item immediately while the server finishes extracting details!
+                  </p>
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Condition</label>
-                    <p className="text-xs font-medium text-slate-300 mt-0.5 truncate">{aiResult.condition || "N/A"}</p>
-                  </div>
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Material</label>
-                    <p className="text-xs font-medium text-slate-300 mt-0.5 truncate">{aiResult.material || "N/A"}</p>
-                  </div>
-                </div>
-
-                {aiResult.measurements_note && (
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Measurements Note</label>
-                    <p className="text-xs text-slate-400 mt-0.5 italic leading-snug">{aiResult.measurements_note}</p>
-                  </div>
-                )}
               </div>
-            </div>
+            ) : (
+              <div className="bg-slate-900/60 border border-slate-850 rounded-xl p-5 space-y-4">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-800/80 pb-2">
+                  AI Extracted Summary
+                </h3>
+                
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Suggested Title</label>
+                    <p className="text-sm font-semibold text-white mt-0.5 leading-tight">{aiResult.title || "N/A"}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Brand</label>
+                      <p className="text-sm font-bold text-slate-200 mt-0.5">{aiResult.brand || "N/A"}</p>
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Category</label>
+                      <p className="text-sm font-bold text-slate-200 mt-0.5">{aiResult.category || "N/A"}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Condition</label>
+                      <p className="text-xs font-medium text-slate-300 mt-0.5 truncate">{aiResult.condition || "N/A"}</p>
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Material</label>
+                      <p className="text-xs font-medium text-slate-300 mt-0.5 truncate">{aiResult.material || "N/A"}</p>
+                    </div>
+                  </div>
+
+                  {aiResult.measurements_note && (
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Measurements Note</label>
+                      <p className="text-xs text-slate-400 mt-0.5 italic leading-snug">{aiResult.measurements_note}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Images Grid Attached */}
             <div className="space-y-2">
