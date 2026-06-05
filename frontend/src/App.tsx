@@ -686,6 +686,7 @@ function App() {
   const [isSetupRequired, setIsSetupRequired] = useState<boolean | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
   
   // Form state
   const [usernameInput, setUsernameInput] = useState('');
@@ -822,8 +823,8 @@ function App() {
     setAuthActionLoading(true);
 
     try {
-      if (isSetupRequired) {
-        // Register the first Admin user
+      if (isSetupRequired || isRegisterMode) {
+        // Register the first Admin user or a new regular user
         const res = await axios.post(`${API_BASE}/auth/register`, {
           username: usernameInput,
           password: passwordInput
@@ -833,6 +834,7 @@ function App() {
         setToken(newToken);
         setUser(res.data.user);
         setIsSetupRequired(false);
+        setIsRegisterMode(false);
       } else {
         // Standard login
         const res = await axios.post(`${API_BASE}/auth/login`, {
@@ -884,12 +886,18 @@ function App() {
 
           <div className="mb-6 text-center">
             <h2 className="text-xl font-bold text-white mb-2">
-              {isSetupRequired ? 'Create Admin Account' : 'Welcome Back'}
+              {isSetupRequired 
+                ? 'Create Admin Account' 
+                : isRegisterMode 
+                  ? 'Create Account' 
+                  : 'Welcome Back'}
             </h2>
             <p className="text-xs text-slate-400">
               {isSetupRequired 
                 ? 'Create the first administrator user to set up your resell inventory.' 
-                : 'Sign in to access your listings, AI analysis, and eBay integration.'}
+                : isRegisterMode
+                  ? 'Register a new user account to get started.'
+                  : 'Sign in to access your listings, AI analysis, and eBay integration.'}
             </p>
           </div>
 
@@ -930,9 +938,24 @@ function App() {
               {authActionLoading ? (
                 <span>Loading...</span>
               ) : (
-                <span>{isSetupRequired ? 'Create & Get Started' : 'Sign In'}</span>
+                <span>{isSetupRequired ? 'Create & Get Started' : isRegisterMode ? 'Create Account' : 'Sign In'}</span>
               )}
             </button>
+
+            {!isSetupRequired && (
+              <div className="text-center mt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRegisterMode(!isRegisterMode);
+                    setAuthError(null);
+                  }}
+                  className="text-xs text-blue-400 hover:text-blue-300 font-semibold transition-colors bg-transparent border-none cursor-pointer"
+                >
+                  {isRegisterMode ? 'Already have an account? Sign In' : 'Need an account? Register'}
+                </button>
+              </div>
+            )}
           </form>
         </motion.div>
       </div>
