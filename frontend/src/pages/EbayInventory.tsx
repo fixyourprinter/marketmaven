@@ -73,8 +73,14 @@ const EbayInventory: React.FC = () => {
   const filteredItems = items.filter(item => {
     const title = item.product?.title || '';
     const sku = item.sku || '';
-    return title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           sku.toLowerCase().includes(searchTerm.toLowerCase());
+    const brand = item.product?.aspects?.Brand?.[0] || '';
+    const country = item.product?.aspects?.['Country/Region of Manufacture']?.[0] || '';
+    
+    const searchLower = searchTerm.toLowerCase();
+    return title.toLowerCase().includes(searchLower) ||
+           sku.toLowerCase().includes(searchLower) ||
+           brand.toLowerCase().includes(searchLower) ||
+           country.toLowerCase().includes(searchLower);
   });
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -102,9 +108,20 @@ const EbayInventory: React.FC = () => {
     if (!editingItem) return;
     try {
       if (isBulkEdit) {
+        // Build aspects payload with only non-empty values
+        const updatedAspects: Record<string, string[]> = {};
+        if (editingItem.product?.aspects?.Brand?.[0]) {
+          updatedAspects.Brand = [editingItem.product.aspects.Brand[0]];
+        }
+        if (editingItem.product?.aspects?.['Country/Region of Manufacture']?.[0]) {
+          updatedAspects['Country/Region of Manufacture'] = [editingItem.product.aspects['Country/Region of Manufacture'][0]];
+        }
+
         const promises = Array.from(selectedSkus).map(sku => 
           axios.put(`${API_BASE}/ebay/inventory/${sku}`, {
-            product: editingItem.product
+            product: {
+              aspects: updatedAspects
+            }
           })
         );
         await Promise.all(promises);
@@ -114,6 +131,7 @@ const EbayInventory: React.FC = () => {
         alert('Item updated successfully!');
       }
       setIsEditModalOpen(false);
+      setSelectedSkus(new Set());
       fetchInventory();
     } catch (error) {
       alert('Failed to save changes.');
@@ -187,24 +205,42 @@ const EbayInventory: React.FC = () => {
                       })}
                     />
                   </div>
-                  {!isBulkEdit && (
-                    <div>
-                      <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2">Quantity</label>
-                      <input 
-                        type="number"
-                        className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50"
-                        value={editingItem.availability?.shipToLocationAvailability?.quantity ?? 1}
-                        onChange={(e) => setEditingItem({
-                          ...editingItem,
-                          availability: {
-                            ...editingItem.availability,
-                            shipToLocationAvailability: { quantity: parseInt(e.target.value) }
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2">Country of Origin</label>
+                    <input 
+                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans"
+                      placeholder={isBulkEdit ? "New country of origin for all..." : "e.g. United States"}
+                      value={editingItem.product?.aspects?.['Country/Region of Manufacture']?.[0] || ''}
+                      onChange={(e) => setEditingItem({
+                        ...editingItem, 
+                        product: {
+                          ...editingItem.product, 
+                          aspects: {
+                            ...(editingItem.product?.aspects || {}), 
+                            'Country/Region of Manufacture': [e.target.value]
                           }
-                        })}
-                      />
-                    </div>
-                  )}
+                        }
+                      })}
+                    />
+                  </div>
                 </div>
+                {!isBulkEdit && (
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2">Quantity</label>
+                    <input 
+                      type="number"
+                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-blue-500/50 font-sans"
+                      value={editingItem.availability?.shipToLocationAvailability?.quantity ?? 1}
+                      onChange={(e) => setEditingItem({
+                        ...editingItem,
+                        availability: {
+                          ...editingItem.availability,
+                          shipToLocationAvailability: { quantity: parseInt(e.target.value) }
+                        }
+                      })}
+                    />
+                  </div>
+                )}
               </div>
               <div className="p-6 border-t border-white/5 bg-white/5 flex justify-end gap-4">
                 <button 
@@ -324,6 +360,11 @@ const EbayInventory: React.FC = () => {
                               {item.product?.aspects?.Color?.[0] && (
                                 <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-white/5 uppercase font-black">
                                   COLOR: {item.product.aspects.Color[0]}
+                                </span>
+                              )}
+                              {item.product?.aspects?.['Country/Region of Manufacture']?.[0] && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-white/5 uppercase font-black">
+                                  ORIGIN: {item.product.aspects['Country/Region of Manufacture'][0]}
                                 </span>
                               )}
                             </div>

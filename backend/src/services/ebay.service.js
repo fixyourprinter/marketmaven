@@ -546,7 +546,11 @@ class EbayService {
         ...current,
         product: {
           ...current.product,
-          ...updateData.product
+          ...updateData.product,
+          aspects: {
+            ...current.product?.aspects,
+            ...(updateData.product?.aspects || {})
+          }
         }
       };
 
