@@ -602,6 +602,35 @@ class EbayService {
     }
   }
 
+  async publishOffer(offerId) {
+    if (!this.accessToken) throw new Error('Not authenticated with eBay');
+
+    try {
+      const response = await axios.post(`${this.baseUrl}/sell/inventory/v1/offer/${offerId}/publish`, {}, {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      return response.data; // contains { listingId: '...' }
+    } catch (error) {
+      console.error(`[EbayService] publishOffer Error for offer #${offerId}:`, error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  getNextSaturdayISO() {
+    const now = new Date();
+    const day = now.getDay();
+    let diff = 6 - day;
+    if (diff <= 0) {
+      diff += 7;
+    }
+    // Set scheduled start time to next Saturday morning at 9:00 AM
+    const nextSaturday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff, 9, 0, 0);
+    return nextSaturday.toISOString();
+  }
+
   async createDraft(itemData) {
     const sku = `LM-${itemData.inventory_code || Date.now()}`;
     try {
@@ -649,7 +678,8 @@ class EbayService {
           returnPolicyId: returnPolicyId,
           paymentPolicyId: paymentPolicyId
         },
-        merchantLocationKey: locationKey
+        merchantLocationKey: locationKey,
+        scheduledStartTime: this.getNextSaturdayISO() // Schedule for Saturday
       };
 
       const offerResponse = await axios.post(`${this.baseUrl}/sell/inventory/v1/offer`, offerBody, {
@@ -663,11 +693,24 @@ class EbayService {
       const offerId = offerResponse.data.offerId;
       console.log(`[EbayService] Draft Offer #${offerId} created successfully on eBay for SKU ${sku}`);
 
+      // 4. Publish the Offer so it is scheduled and visible in Seller Hub!
+      console.log(`[EbayService] Publishing scheduled offer #${offerId}...`);
+      let listingId = null;
+      try {
+        const publishResponse = await this.publishOffer(offerId);
+        listingId = publishResponse.listingId;
+        console.log(`[EbayService] Scheduled offer #${offerId} published successfully! Listing ID: ${listingId}`);
+      } catch (publishErr) {
+        console.error(`[EbayService] Failed to publish scheduled offer #${offerId}:`, publishErr.message);
+        throw new Error(`Failed to publish scheduled listing: ${publishErr.message}`);
+      }
+
       return { 
         status: 'success', 
         sku, 
         offerId, 
-        message: 'Draft Listing successfully created in your eBay Seller Hub!' 
+        listingId,
+        message: `Listing successfully scheduled for Saturday at 9:00 AM! (eBay Item ID: ${listingId})` 
       };
     } catch (error) {
       console.error('eBay Create Draft Error:', error.response?.data || error.message);
