@@ -45,6 +45,10 @@ const ThriftProspector: React.FC = () => {
   // Route planning state
   const [routeStops, setRouteStops] = useState<ProspectLocation[]>([]);
   const [userCoords, setUserCoords] = useState<{lat: number; lng: number} | null>(null);
+  const [startOverride, setStartOverride] = useState('');
+  const [startOverrideLabel, setStartOverrideLabel] = useState('');
+  const [isSettingStart, setIsSettingStart] = useState(false);
+  const [startError, setStartError] = useState('');
   
   // Form state
   const [isAddingLoc, setIsAddingLoc] = useState(false);
@@ -83,6 +87,56 @@ const ThriftProspector: React.FC = () => {
       setAnalytics(res.data);
     } catch (err) {
       console.error('Failed to load analytics', err);
+    }
+  };
+
+  const handleSetStartOverride = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!startOverride.trim()) return;
+    
+    setIsSettingStart(true);
+    setStartError('');
+    
+    try {
+      const query = encodeURIComponent(startOverride.trim());
+      const geoRes = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${query}`);
+      if (geoRes.data && geoRes.data.length > 0) {
+        const lat = parseFloat(geoRes.data[0].lat);
+        const lng = parseFloat(geoRes.data[0].lon);
+        setUserCoords({ lat, lng });
+        const namePart = geoRes.data[0].display_name.split(',')[0];
+        setStartOverrideLabel(namePart || startOverride.trim());
+      } else {
+        setStartError('Could not find location coordinates for that address or ZIP code.');
+      }
+    } catch (err) {
+      console.error('Failed to geocode start address:', err);
+      setStartError('Failed to locate address. Check your network connection.');
+    } finally {
+      setIsSettingStart(false);
+    }
+  };
+
+  const handleClearOverride = () => {
+    setStartOverride('');
+    setStartOverrideLabel('');
+    setStartError('');
+    
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setUserCoords({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude
+          });
+        },
+        (err) => {
+          console.log('Geolocation permission denied or unavailable.', err);
+          setUserCoords(null);
+        }
+      );
+    } else {
+      setUserCoords(null);
     }
   };
 
@@ -138,7 +192,8 @@ const ThriftProspector: React.FC = () => {
 
     // Add user marker if coordinates available
     if (userCoords) {
-      const userMarkerHtml = `<span style="display:flex; justify-content:center; align-items:center; width:22px; height:22px; background-color:#3b82f6; border-radius:50%; border: 3px solid white; box-shadow: 0 0 10px rgba(59,130,246,0.6); animate: pulse 2s infinite;"></span>`;
+      const markerColor = startOverrideLabel ? '#8b5cf6' : '#3b82f6';
+      const userMarkerHtml = `<span style="display:flex; justify-content:center; align-items:center; width:22px; height:22px; background-color:${markerColor}; border-radius:50%; border: 3px solid white; box-shadow: 0 0 10px ${markerColor}66; animate: pulse 2s infinite;"></span>`;
       L.marker([userCoords.lat, userCoords.lng], {
         icon: L.divIcon({
           html: userMarkerHtml,
@@ -146,7 +201,7 @@ const ThriftProspector: React.FC = () => {
           iconSize: [22, 22],
           iconAnchor: [11, 11]
         })
-      }).bindPopup('Your Current Location').addTo(map);
+      }).bindPopup(startOverrideLabel ? `Start: ${startOverrideLabel}` : 'Your Current Location').addTo(map);
     }
 
     // Color code pins by type
@@ -216,7 +271,7 @@ const ThriftProspector: React.FC = () => {
         mapInstanceRef.current = null;
       }
     };
-  }, [activeTab, loading, locations, routeStops]);
+  }, [activeTab, loading, locations, routeStops, userCoords, startOverrideLabel]);
 
   // Toggle location in planned route
   const toggleRouteStop = (loc: ProspectLocation) => {
@@ -726,6 +781,63 @@ const ThriftProspector: React.FC = () => {
                         GPS Navigation
                       </button>
                     </div>
+                  </div>
+
+                  {/* Start Location Override Form */}
+                  <div className="mt-4 p-3.5 bg-slate-950/40 rounded-xl border border-white/5 space-y-2 text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400 flex items-center gap-1.5">
+                        <MapPin size={12} className={startOverrideLabel ? "text-purple-400" : "text-blue-400"} />
+                        Starting Location: {startOverrideLabel ? 'Custom ZIP/Address' : 'Browser Geolocation'}
+                      </span>
+                      {userCoords ? (
+                        <span className="text-[9px] font-mono text-slate-500">
+                          ({userCoords.lat.toFixed(4)}, {userCoords.lng.toFixed(4)})
+                        </span>
+                      ) : (
+                        <span className="text-[9px] text-amber-500 font-medium">Using San Jose default center</span>
+                      )}
+                    </div>
+
+                    <form onSubmit={handleSetStartOverride} className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Enter ZIP code or start address (e.g. 95123)..."
+                        value={startOverride}
+                        onChange={(e) => setStartOverride(e.target.value)}
+                        className="flex-1 bg-slate-900 border border-white/10 rounded-lg px-3 py-1.5 outline-none text-xs text-slate-200 focus:border-blue-500/50 font-sans"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isSettingStart || !startOverride.trim()}
+                        className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-white/5 text-white disabled:text-slate-500 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                      >
+                        {isSettingStart ? <RotateCw className="animate-spin" size={12} /> : 'Set'}
+                      </button>
+                      {(startOverrideLabel || userCoords) && (
+                        <button
+                          type="button"
+                          onClick={handleClearOverride}
+                          className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-white/10 text-slate-300 hover:text-white rounded-lg text-xs transition-all cursor-pointer active:scale-95"
+                          title="Reset to default GPS"
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </form>
+
+                    {startOverrideLabel && (
+                      <p className="text-[10px] text-emerald-400 font-sans flex items-center gap-1">
+                        <Check size={11} />
+                        Starting route from: <strong className="text-slate-200 font-semibold">{startOverrideLabel}</strong>
+                      </p>
+                    )}
+                    {startError && (
+                      <p className="text-[10px] text-amber-400 font-sans flex items-center gap-1 font-semibold leading-snug">
+                        <AlertCircle size={11} className="flex-shrink-0" />
+                        {startError}
+                      </p>
+                    )}
                   </div>
 
                   {/* Stops List */}
