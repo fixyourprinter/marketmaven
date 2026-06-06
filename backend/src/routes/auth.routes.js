@@ -51,8 +51,15 @@ router.post('/auth/register', async (req, res) => {
       if (!isFirstUser) {
         // Check if self-signup is disabled globally
         const isSelfSignupDisabled = await new Promise((resolve) => {
-          db.get("SELECT value FROM settings WHERE key = 'disable_self_signup'", [], (sErr, sRow) => {
-            resolve(sRow ? sRow.value === 'true' : false);
+          db.get("SELECT value FROM settings WHERE user_id = 0 AND key = 'disable_self_signup'", [], (sErr, sRow) => {
+            if (sErr) {
+              console.error('[Register] Error checking self-signup setting:', sErr);
+              resolve(false);
+            } else {
+              const isDisabled = sRow ? sRow.value === 'true' : false;
+              console.log(`[Register] Self-signup disable status check: ${isDisabled}`);
+              resolve(isDisabled);
+            }
           });
         });
 
