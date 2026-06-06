@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import axios from 'axios';
-import { LayoutDashboard, Database, Settings as SettingsIcon, ChevronRight, X, Sun, Moon, Menu, Camera, MessageSquare, History, CheckCircle2, LogOut, User as UserIcon, TrendingUp, MapPin } from 'lucide-react';
+import { LayoutDashboard, Database, Settings as SettingsIcon, ChevronRight, X, Sun, Moon, Menu, Camera, MessageSquare, History, CheckCircle2, LogOut, User as UserIcon, TrendingUp, MapPin, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Dashboard from './pages/Dashboard';
 import EbayInventory from './pages/EbayInventory';
 import MobileCapture from './pages/MobileCapture';
 import SalesDashboard from './pages/SalesDashboard';
 import ThriftProspector from './pages/ThriftProspector';
+import AdminDashboard from './pages/AdminDashboard';
 
 const API_BASE = '/api';
 
@@ -34,6 +35,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenFeedback, onOpe
     { path: '/ebay', label: 'eBay Inventory', icon: Database },
     { path: '/prospecting', label: 'Sourcing Route', icon: MapPin }
   ];
+
+  if (user && user.role === 'admin') {
+    navItems.push({ path: '/admin', label: 'Admin Console', icon: ShieldAlert });
+  }
 
   const handleEbayLogin = async () => {
     try {
@@ -191,6 +196,10 @@ function AppContent({
     { path: '/mobile', label: 'Mobile Photo Capture', icon: Camera }
   ];
 
+  if (user && user.role === 'admin') {
+    navItems.push({ path: '/admin', label: 'Admin Console', icon: ShieldAlert });
+  }
+
   const showDesktopSidebar = !isMobileView && !isMobileScreen;
   const showMobileHeader = !isMobileView && isMobileScreen;
 
@@ -315,6 +324,9 @@ function AppContent({
           <Route path="/sales" element={<SalesDashboard />} />
           <Route path="/ebay" element={<EbayInventory />} />
           <Route path="/prospecting" element={<ThriftProspector />} />
+          {user && user.role === 'admin' && (
+            <Route path="/admin" element={<AdminDashboard />} />
+          )}
           <Route 
             path="/mobile" 
             element={

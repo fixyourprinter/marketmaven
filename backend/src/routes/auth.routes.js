@@ -47,6 +47,20 @@ router.post('/auth/register', async (req, res) => {
       }
 
       const isFirstUser = !row || row.count === 0;
+
+      if (!isFirstUser) {
+        // Check if self-signup is disabled globally
+        const isSelfSignupDisabled = await new Promise((resolve) => {
+          db.get("SELECT value FROM settings WHERE key = 'disable_self_signup'", [], (sErr, sRow) => {
+            resolve(sRow ? sRow.value === 'true' : false);
+          });
+        });
+
+        if (isSelfSignupDisabled) {
+          return res.status(403).json({ error: 'Self-signup is disabled by the administrator.' });
+        }
+      }
+
       const role = isFirstUser ? 'admin' : 'user';
 
       const salt = await bcrypt.genSalt(10);
@@ -405,16 +419,20 @@ router.delete('/feedback/:id', authenticateUser, (req, res) => {
   );
 });
 
-// GET geocode address using Nominatim (proxied to avoid client-side CORS and User-Agent blocking)
+// GET geocode/reverse geocode address using Nominatim (proxied to avoid client-side CORS and User-Agent blocking)
 router.get('/prospecting/geocode', authenticateUser, async (req, res) => {
-  const { address } = req.query;
-  if (!address) {
-    return res.status(400).json({ error: 'Address query parameter is required' });
-  }
+  const { address, lat, lng } = req.query;
 
   try {
-    const query = encodeURIComponent(address);
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${query}`;
+    let url = '';
+    if (lat && lng) {
+      url = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&lat=${lat}&lon=${lng}`;
+    } else if (address) {
+      const query = encodeURIComponent(address);
+      url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&countrycodes=us&q=${query}`;
+    } else {
+      return res.status(400).json({ error: 'Address or coordinates are required' });
+    }
     
     const response = await axios.get(url, {
       headers: {
@@ -426,7 +444,7 @@ router.get('/prospecting/geocode', authenticateUser, async (req, res) => {
     res.json(response.data);
   } catch (error) {
     console.error('[auth.routes] Geocoding failed:', error.message);
-    res.status(500).json({ error: 'Failed to geocode address' });
+    res.status(500).json({ error: 'Failed to geocode' });
   }
 });
 
@@ -631,6 +649,311 @@ router.post('/prospecting/visual-comp', authenticateUser, upload.single('image')
     console.error('[auth.routes] Visual Comp lookup failed:', error);
     res.status(500).json({ error: error.message || 'Visual search failed' });
   }
+});
+
+// Admin Authorization Middleware
+const requireAdmin = (req, res, next) => {
+  if (req.user && req.user.role === 'admin') {
+    next();
+  } else {
+    res.status(403).json({ error: 'Access denied: Admin role required' });
+  }
+};
+
+// GET Admin dashboard activity stats for all users
+router.get('/admin/activity', authenticateUser, requireAdmin, (req, res) => {
+  db.all('SELECT id, username, role, created_at FROM users ORDER BY created_at DESC', [], async (err, users) => {
+    if (err) {
+      return res.status(500).json({ error: 'Failed to retrieve users' });
+    }
+    
+    try {
+      const userStatsPromises = users.map(user => {
+        return new Promise((resolve) => {
+          db.get(
+            `SELECT 
+               COUNT(id) as total_items,
+               SUM(case when status='draft' then 1 else 0 end) as drafts,
+               SUM(case when status='listed' then 1 else 0 end) as listed,
+               SUM(case when status='sold' then 1 else 0 end) as sold,
+               SUM(purchase_price) as total_spend
+             FROM items WHERE user_id = ?`,
+            [user.id],
+            (itemErr, itemRow) => {
+              db.get(
+                `SELECT COUNT(id) as count FROM prospect_locations WHERE user_id = ?`,
+                [user.id],
+                (locErr, locRow) => {
+                  db.get(
+                    `SELECT COUNT(id) as count FROM feedback WHERE user_id = ?`,
+                    [user.id],
+                    (feedErr, feedRow) => {
+                      resolve({
+                        ...user,
+                        totalItems: itemRow?.total_items || 0,
+                        drafts: itemRow?.drafts || 0,
+                        listed: itemRow?.listed || 0,
+                        sold: itemRow?.sold || 0,
+                        totalSpend: itemRow?.total_spend || 0,
+                        locationsCount: locRow?.count || 0,
+                        feedbackCount: feedRow?.count || 0
+                      });
+                    }
+                  );
+                }
+              );
+            }
+          );
+        });
+      });
+      
+      const results = await Promise.all(userStatsPromises);
+      res.json(results);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+});
+
+// GET all user feedbacks for Admin Dashboard
+router.get('/admin/feedback', authenticateUser, requireAdmin, (req, res) => {
+  db.all(
+    `SELECT f.id, f.message, f.rating, f.status, f.created_at, u.username 
+     FROM feedback f 
+     JOIN users u ON f.user_id = u.id 
+     ORDER BY f.created_at DESC`,
+    [],
+    (err, rows) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Database error fetching feedback' });
+      }
+      res.json(rows);
+    }
+  );
+});
+
+// POST resolve any user feedback ticket (Admin only)
+router.post('/admin/feedback/:id/resolve', authenticateUser, requireAdmin, (req, res) => {
+  const { id } = req.params;
+  db.run(
+    "UPDATE feedback SET status = 'resolved' WHERE id = ?",
+    [id],
+    async function(err) {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Database error resolving feedback' });
+      }
+
+      // Automatically close the issue on GitHub if GITHUB_TOKEN is configured
+      if (process.env.GITHUB_TOKEN) {
+        try {
+          const repoOwner = 'fixyourprinter';
+          const repoName = 'marketmaven';
+          const token = process.env.GITHUB_TOKEN;
+          
+          const gitResponse = await axios.get(
+            `https://api.github.com/repos/${repoOwner}/${repoName}/issues?state=open&per_page=100`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/vnd.github+json',
+                'User-Agent': 'MarketMaven-App'
+              }
+            }
+          );
+          
+          const matchingIssues = gitResponse.data.filter(issue => 
+            issue.title.startsWith(`[Wife Feedback #${id}]`)
+          );
+          
+          for (const issue of matchingIssues) {
+            const resolvedTitle = issue.title.includes('(✅ Resolved)') 
+              ? issue.title 
+              : `${issue.title} (✅ Resolved)`;
+              
+            await axios.patch(
+              `https://api.github.com/repos/${repoOwner}/${repoName}/issues/${issue.number}`,
+              {
+                state: 'closed',
+                title: resolvedTitle
+              },
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  Accept: 'application/vnd.github+json',
+                  'User-Agent': 'MarketMaven-App'
+                }
+              }
+            );
+          }
+        } catch (gitErr) {
+          console.error('Failed to close GitHub issue on admin resolve:', gitErr.message);
+        }
+      }
+
+      res.json({ status: 'success' });
+    }
+  );
+});
+
+// PUT promote or demote user roles (Admin only)
+router.put('/admin/users/:id/role', authenticateUser, requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+  
+  if (role !== 'admin' && role !== 'user') {
+    return res.status(400).json({ error: 'Invalid role' });
+  }
+  
+  db.run(
+    'UPDATE users SET role = ? WHERE id = ?',
+    [role, id],
+    function(err) {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Database error updating user role' });
+      }
+      res.json({ status: 'success' });
+    }
+  );
+});
+
+// POST create a new user (Admin only)
+router.post('/admin/users', authenticateUser, requireAdmin, async (req, res) => {
+  const { username, password, role } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
+  const userRole = role === 'admin' ? 'admin' : 'user';
+  
+  try {
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+    
+    db.run(
+      "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
+      [username, passwordHash, userRole],
+      function(insertErr) {
+        if (insertErr) {
+          if (insertErr.message.includes('UNIQUE constraint failed')) {
+            return res.status(400).json({ error: 'Username already exists' });
+          }
+          return res.status(500).json({ error: 'Failed to create user' });
+        }
+        res.json({ status: 'success', user: { id: this.lastID, username, role: userRole } });
+      }
+    );
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE user and all associated data (Admin only, self-deletion prohibited)
+router.delete('/admin/users/:id', authenticateUser, requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const targetId = parseInt(id, 10);
+  
+  if (isNaN(targetId)) {
+    return res.status(400).json({ error: 'Invalid user ID' });
+  }
+  
+  if (targetId === req.userId) {
+    return res.status(400).json({ error: 'You cannot delete yourself.' });
+  }
+  
+  db.run("BEGIN TRANSACTION", (err) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Failed to start transaction' });
+    }
+    
+    db.run("DELETE FROM ebay_cache WHERE user_id = ?", [targetId], (err1) => {
+      if (err1) {
+        console.error(err1);
+        db.run("ROLLBACK");
+        return res.status(500).json({ error: 'Failed to delete ebay_cache' });
+      }
+      
+      db.run("DELETE FROM items WHERE user_id = ?", [targetId], (err2) => {
+        if (err2) {
+          console.error(err2);
+          db.run("ROLLBACK");
+          return res.status(500).json({ error: 'Failed to delete items' });
+        }
+        
+        db.run("DELETE FROM feedback WHERE user_id = ?", [targetId], (err3) => {
+          if (err3) {
+            console.error(err3);
+            db.run("ROLLBACK");
+            return res.status(500).json({ error: 'Failed to delete feedback' });
+          }
+          
+          db.run("DELETE FROM prospect_locations WHERE user_id = ?", [targetId], (err4) => {
+            if (err4) {
+              console.error(err4);
+              db.run("ROLLBACK");
+              return res.status(500).json({ error: 'Failed to delete locations' });
+            }
+            
+            db.run("DELETE FROM settings WHERE user_id = ?", [targetId], (err5) => {
+              if (err5) {
+                console.error(err5);
+                db.run("ROLLBACK");
+                return res.status(500).json({ error: 'Failed to delete settings' });
+              }
+              
+              db.run("DELETE FROM users WHERE id = ?", [targetId], (err6) => {
+                if (err6) {
+                  console.error(err6);
+                  db.run("ROLLBACK");
+                  return res.status(500).json({ error: 'Failed to delete user' });
+                }
+                
+                db.run("COMMIT", (err7) => {
+                  if (err7) {
+                    console.error(err7);
+                    db.run("ROLLBACK");
+                    return res.status(500).json({ error: 'Failed to commit transaction' });
+                  }
+                  res.json({ status: 'success', message: 'User and all associated data deleted successfully' });
+                });
+              });
+            });
+          });
+        });
+      });
+    });
+  });
+});
+
+// GET global settings - self-signup status (Admin only)
+router.get('/admin/settings/self-signup', authenticateUser, requireAdmin, (req, res) => {
+  db.get("SELECT value FROM settings WHERE key = 'disable_self_signup'", [], (err, row) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Failed to retrieve self-signup setting' });
+    }
+    res.json({ disableSelfSignup: row ? row.value === 'true' : false });
+  });
+});
+
+// POST toggle global self-signup status (Admin only)
+router.post('/admin/settings/self-signup', authenticateUser, requireAdmin, (req, res) => {
+  const { disableSelfSignup } = req.body;
+  const valueStr = disableSelfSignup ? 'true' : 'false';
+  
+  db.run(
+    "INSERT INTO settings (user_id, key, value) VALUES (0, 'disable_self_signup', ?) ON CONFLICT(user_id, key) DO UPDATE SET value = ?",
+    [valueStr, valueStr],
+    function(err) {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Failed to update self-signup setting' });
+      }
+      res.json({ status: 'success', disableSelfSignup });
+    }
+  );
 });
 
 module.exports = router;
