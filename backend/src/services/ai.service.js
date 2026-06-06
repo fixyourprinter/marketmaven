@@ -1,5 +1,6 @@
 const axios = require('axios');
 const fs = require('fs');
+const telemetryService = require('./telemetry.service');
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 const VISION_MODEL = process.env.VISION_MODEL || 'llava';
@@ -92,23 +93,36 @@ async function processImages(imagePaths) {
       Respond ONLY with the JSON object.
     `;
 
-    const response = await axios.post(`${OLLAMA_URL}/api/chat`, {
-      model: VISION_MODEL,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-          images: imagesBase64.slice(0, 3)
+    const startTime = Date.now();
+    let response;
+    try {
+      response = await axios.post(`${OLLAMA_URL}/api/chat`, {
+        model: VISION_MODEL,
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+            images: imagesBase64.slice(0, 3)
+          }
+        ],
+        stream: false,
+        format: 'json',
+        options: {
+          num_ctx: 16384 // Set context size to 16k to comfortably fit multiple high-res vision tokens
         }
-      ],
-      stream: false,
-      format: 'json',
-      options: {
-        num_ctx: 16384 // Set context size to 16k to comfortably fit multiple high-res vision tokens
-      }
-    }, {
-      timeout: 180000 // 3 minute timeout for complex logic
-    });
+      }, {
+        timeout: 180000 // 3 minute timeout for complex logic
+      });
+
+      const durationMs = Date.now() - startTime;
+      const promptTokens = response.data?.prompt_eval_count || 0;
+      const evalTokens = response.data?.eval_count || 0;
+      telemetryService.recordOllamaRequest(VISION_MODEL, 'Process Images', promptTokens, evalTokens, durationMs, true);
+    } catch (err) {
+      const durationMs = Date.now() - startTime;
+      telemetryService.recordOllamaRequest(VISION_MODEL, 'Process Images', 0, 0, durationMs, false);
+      throw err;
+    }
 
     return JSON.parse(response.data.message.content);
   } catch (error) {
@@ -167,19 +181,32 @@ async function extractAspectsFromText(title, description) {
       }
     `;
 
-    const response = await axios.post(`${OLLAMA_URL}/api/chat`, {
-      model: VISION_MODEL,
-      messages: [
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      stream: false,
-      format: 'json'
-    }, {
-      timeout: 90000 // 1.5 minute timeout
-    });
+    const startTime = Date.now();
+    let response;
+    try {
+      response = await axios.post(`${OLLAMA_URL}/api/chat`, {
+        model: VISION_MODEL,
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        stream: false,
+        format: 'json'
+      }, {
+        timeout: 90000 // 1.5 minute timeout
+      });
+
+      const durationMs = Date.now() - startTime;
+      const promptTokens = response.data?.prompt_eval_count || 0;
+      const evalTokens = response.data?.eval_count || 0;
+      telemetryService.recordOllamaRequest(VISION_MODEL, 'Extract Aspects', promptTokens, evalTokens, durationMs, true);
+    } catch (err) {
+      const durationMs = Date.now() - startTime;
+      telemetryService.recordOllamaRequest(VISION_MODEL, 'Extract Aspects', 0, 0, durationMs, false);
+      throw err;
+    }
 
     return JSON.parse(response.data.message.content);
   } catch (error) {
@@ -204,20 +231,33 @@ async function generateSearchQueryFromImage(imagePath) {
       Ensure the query is concise, accurate, and contains only keywords that would appear in an eBay title. E.g. "Kut From The Kloth Alanna Jeans". Do not use punctuation or quotes in the query.
     `;
 
-    const response = await axios.post(`${OLLAMA_URL}/api/chat`, {
-      model: VISION_MODEL,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-          images: [base64Image]
-        }
-      ],
-      stream: false,
-      format: 'json'
-    }, {
-      timeout: 90000
-    });
+    const startTime = Date.now();
+    let response;
+    try {
+      response = await axios.post(`${OLLAMA_URL}/api/chat`, {
+        model: VISION_MODEL,
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+            images: [base64Image]
+          }
+        ],
+        stream: false,
+        format: 'json'
+      }, {
+        timeout: 90000
+      });
+
+      const durationMs = Date.now() - startTime;
+      const promptTokens = response.data?.prompt_eval_count || 0;
+      const evalTokens = response.data?.eval_count || 0;
+      telemetryService.recordOllamaRequest(VISION_MODEL, 'Generate Visual Query', promptTokens, evalTokens, durationMs, true);
+    } catch (err) {
+      const durationMs = Date.now() - startTime;
+      telemetryService.recordOllamaRequest(VISION_MODEL, 'Generate Visual Query', 0, 0, durationMs, false);
+      throw err;
+    }
 
     const parsed = JSON.parse(response.data.message.content);
     return parsed.query || '';

@@ -195,6 +195,55 @@ const db = new sqlite3.Database(dbPath, (err) => {
           });
         }
       });
+
+      // Migrate items: add private_notes, is_favorite, quantity, condition_description
+      db.all("PRAGMA table_info(items)", (err, rows) => {
+        if (!err && rows) {
+          const existingColumns = rows.map(row => row.name);
+          const migrations = [
+            ['private_notes', 'TEXT'],
+            ['is_favorite', 'INTEGER DEFAULT 0'],
+            ['quantity', 'INTEGER DEFAULT 1'],
+            ['condition_description', 'TEXT']
+          ];
+          migrations.forEach(([colName, colType]) => {
+            if (!existingColumns.includes(colName)) {
+              console.log(`Migrating items: Adding column ${colName}...`);
+              db.run(`ALTER TABLE items ADD COLUMN ${colName} ${colType}`);
+            }
+          });
+        }
+      });
+
+      // Create Mavey and Labels tables
+      db.run(`CREATE TABLE IF NOT EXISTS labels (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        name TEXT,
+        color TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`);
+
+      db.run(`CREATE TABLE IF NOT EXISTS item_labels (
+        item_id INTEGER,
+        label_id INTEGER,
+        PRIMARY KEY (item_id, label_id)
+      )`);
+
+      db.run(`CREATE TABLE IF NOT EXISTS mavey_conversations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        title TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`);
+
+      db.run(`CREATE TABLE IF NOT EXISTS mavey_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        conversation_id INTEGER,
+        sender TEXT,
+        content TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`);
     });
   }
 });

@@ -8,6 +8,7 @@ const ebayService = require('../services/ebay.service');
 const db = require('../db/database');
 const authenticateUser = require('../middleware/auth.middleware');
 const { generateSearchQueryFromImage } = require('../services/ai.service');
+const telemetryService = require('../services/telemetry.service');
 const router = express.Router();
 
 const storage = multer.diskStorage({
@@ -961,6 +962,17 @@ router.post('/admin/settings/self-signup', authenticateUser, requireAdmin, (req,
       res.json({ status: 'success', disableSelfSignup });
     }
   );
+});
+
+// GET admin telemetry stats
+router.get('/admin/telemetry', authenticateUser, requireAdmin, (req, res) => {
+  try {
+    const stats = telemetryService.getTelemetry();
+    res.json(stats);
+  } catch (err) {
+    console.error('Failed to retrieve telemetry stats:', err);
+    res.status(500).json({ error: 'Failed to retrieve telemetry stats' });
+  }
 });
 
 module.exports = router;

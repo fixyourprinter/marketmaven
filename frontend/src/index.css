@@ -323,6 +323,254 @@
   --slate-950: #ffffff; /* White cards/sidebar */
 }
 
+/* Animated RGB Rainbow Keyframes */
+@keyframes rgb-rainbow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes rgb-hue-rotate {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+@keyframes rgb-border-rainbow {
+  0% { border-color: #00f0ff; box-shadow: 0 0 10px rgba(0, 240, 255, 0.25); }
+  33% { border-color: #ff00ff; box-shadow: 0 0 10px rgba(255, 0, 255, 0.25); }
+  66% { border-color: #ffff00; box-shadow: 0 0 10px rgba(255, 255, 0, 0.25); }
+  100% { border-color: #00f0ff; box-shadow: 0 0 10px rgba(0, 240, 255, 0.25); }
+}
+
+/* RGB Theme Overrides (Dark Mode Chroma Edition) */
+.theme-rgb {
+  --font-serif-family: "Outfit", system-ui, sans-serif;
+  --font-sans-family: "Inter", system-ui, sans-serif;
+
+  --primary: 0 0% 100%;
+  --primary-foreground: 0 0% 0%;
+  --background: 0 0% 2%; /* Pure black #050505 */
+  --foreground: 0 0% 98%;
+  --card: 0 0% 5%; /* Charcoal #0d0d0d */
+  --card-foreground: 0 0% 98%;
+  --popover: 0 0% 5%;
+  --popover-foreground: 0 0% 98%;
+  --border: 0 0% 15%;
+  --input: 0 0% 8%;
+  --ring: 120 100% 50%;
+
+  --glass-bg: rgba(5, 5, 5, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.05);
+  --input-bg: rgba(0, 0, 0, 0.6);
+
+  --theme-btn-bg: #00f0ff;
+  --theme-btn-hover: #ff00ff;
+  --theme-btn-shadow: rgba(0, 240, 255, 0.2);
+  --theme-hover-border: rgba(0, 240, 255, 0.15);
+
+  --bg-gradient-1: hsla(180, 100%, 50%, 0.06);
+  --bg-gradient-2: hsla(300, 100%, 50%, 0.06);
+
+  /* Blue Palette (mapped to Razer Greens) */
+  --blue-50: #f0fff0;
+  --blue-100: #dcfedc;
+  --blue-200: #bbfdbb;
+  --blue-300: #86fb86;
+  --blue-400: #46f246;
+  --blue-500: #00FF00;
+  --blue-600: #00DD00;
+  --blue-700: #00b300;
+  --blue-800: #008f00;
+  --blue-900: #007300;
+  --blue-950: #003b00;
+
+  /* Slate Palette (mapped to Pure Obsidian Grays) - Dark Mode */
+  --slate-50: #fafafa;
+  --slate-100: #f4f4f5;
+  --slate-200: #e4e4e7;
+  --slate-300: #d4d4d8;
+  --slate-400: #a1a1aa;
+  --slate-500: #71717a;
+  --slate-600: #52525b;
+  --slate-700: #3f3f46;
+  --slate-800: #27272a;
+  --slate-900: #18181b;
+  --slate-950: #09090b;
+}
+
+/* Chroma button, inputs, and card overrides */
+.theme-rgb .btn-primary, 
+.theme-rgb button.btn-primary {
+  background: linear-gradient(90deg, #00f0ff, #ff00ff, #ffff00, #00f0ff) !important;
+  background-size: 200% auto !important;
+  animation: rgb-rainbow 5s linear infinite !important;
+  border: none !important;
+  color: white !important;
+}
+
+.theme-rgb .btn-primary:hover, 
+.theme-rgb button.btn-primary:hover {
+  animation: rgb-rainbow 2.5s linear infinite !important;
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.45) !important;
+}
+
+/* Active sidebars/headers chroma border indicator */
+.theme-rgb .border-blue-500\/30,
+.theme-rgb .border-blue-600\/50,
+.theme-rgb .border-blue-500\/50 {
+  animation: rgb-border-rainbow 6s linear infinite !important;
+}
+
+/* Glass card active hover chroma border */
+.theme-rgb .glass-card:hover {
+  animation: rgb-border-rainbow 8s linear infinite !important;
+  background-color: rgba(10, 10, 10, 0.8) !important;
+}
+
+/* Focus input fields chroma border */
+.theme-rgb input:focus {
+  animation: rgb-border-rainbow 5s linear infinite !important;
+  outline: none !important;
+}
+
+/* Rainbow color wheel background orbs */
+.theme-rgb .blur-\[120px\],
+.theme-rgb .blur-\[100px\] {
+  animation: rgb-hue-rotate 15s linear infinite !important;
+}
+
+/* RGB Theme - Light Mode */
+.theme-rgb.light, .light .theme-rgb {
+  --background: 0 0% 98%; 
+  --foreground: 0 0% 4%; 
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 4%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 4%;
+  --border: 0 0% 90%;
+  --input: 0 0% 100%;
+  --ring: 0 0% 40%;
+
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(0, 0, 0, 0.05);
+  --input-bg: #FFFFFF;
+
+  --theme-btn-bg: #000000;
+  --theme-btn-hover: #1f1f1f;
+  --theme-btn-shadow: rgba(0, 0, 0, 0.1);
+  --theme-hover-border: rgba(0, 0, 0, 0.2);
+
+  --bg-gradient-1: hsla(0, 0%, 0%, 0.02);
+  --bg-gradient-2: hsla(0, 0%, 0%, 0.01);
+
+  /* Flipped Slate Palette - Light Mode */
+  --slate-50: #09090b;
+  --slate-100: #18181b;
+  --slate-200: #27272a;
+  --slate-300: #3f3f46;
+  --slate-400: #52525b;
+  --slate-500: #71717a;
+  --slate-600: #a1a1aa;
+  --slate-700: #d4d4d8;
+  --slate-800: #e4e4e7;
+  --slate-900: #fafafa;
+  --slate-950: #ffffff;
+}
+
+/* Gen Z Y2K Cyber Theme - Dark Mode */
+.theme-genz {
+  --font-serif-family: "Outfit", system-ui, sans-serif;
+  --font-sans-family: "Inter", system-ui, sans-serif;
+
+  --primary: 330 100% 50%; /* Hot Pink #FF007F */
+  --primary-foreground: 0 0% 100%;
+  --background: 270 70% 3%; /* Deep Cyber Indigo #0A0314 */
+  --foreground: 180 100% 95%; /* Cyber Cyan White #E6FFFF */
+  --card: 270 50% 6%; /* Dark Cyber Violet #130821 */
+  --card-foreground: 180 100% 95%;
+  --popover: 270 50% 6%;
+  --popover-foreground: 180 100% 95%;
+  --border: 270 50% 15%; /* Indigo-violet border */
+  --input: 270 50% 10%;
+  --ring: 330 100% 50%;
+
+  --glass-bg: rgba(10, 3, 20, 0.65);
+  --glass-border: rgba(255, 0, 127, 0.08);
+  --input-bg: rgba(0, 0, 0, 0.4);
+
+  --theme-btn-bg: #FF007F;
+  --theme-btn-hover: #E6006F;
+  --theme-btn-shadow: rgba(255, 0, 127, 0.2);
+  --theme-hover-border: rgba(0, 240, 255, 0.25);
+
+  --bg-gradient-1: hsla(330, 95%, 60%, 0.1);
+  --bg-gradient-2: hsla(180, 95%, 50%, 0.08);
+
+  /* Blue Palette (mapped to Hot Pinks/Magentas) */
+  --blue-50: #fff0f6;
+  --blue-100: #ffdeeb;
+  --blue-200: #ffb8d2;
+  --blue-300: #ff85b3;
+  --blue-400: #ff4d94;
+  --blue-500: #FF007F;
+  --blue-600: #E6006F;
+  --blue-700: #B80059;
+  --blue-800: #8A0043;
+  --blue-900: #5C002D;
+  --blue-950: #3D001E;
+
+  /* Slate Palette (mapped to Y2K Cyber Cyans) - Dark Mode */
+  --slate-50: #ecfeff;
+  --slate-100: #cffafe;
+  --slate-200: #a5f3fc;
+  --slate-300: #67e8f9;
+  --slate-400: #22d3ee;
+  --slate-500: #06b6d4;
+  --slate-600: #0891b2;
+  --slate-700: #0e7490;
+  --slate-800: #155e75;
+  --slate-900: #164e63;
+  --slate-950: #083344;
+}
+
+/* Gen Z Y2K Cyber Theme - Light Mode */
+.theme-genz.light, .light .theme-genz {
+  --background: 300 30% 98%; /* Pastel Pink-white */
+  --foreground: 270 70% 5%; /* Dark indigo */
+  --card: 0 0% 100%;
+  --card-foreground: 270 70% 5%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 270 70% 5%;
+  --border: 300 20% 90%;
+  --input: 0 0% 100%;
+  --ring: 330 100% 55%;
+
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(255, 0, 127, 0.12);
+  --input-bg: #FFFFFF;
+
+  --theme-btn-bg: #FF007F;
+  --theme-btn-hover: #E6006F;
+  --theme-btn-shadow: rgba(255, 0, 127, 0.1);
+  --theme-hover-border: rgba(0, 240, 255, 0.3);
+
+  --bg-gradient-1: hsla(330, 90%, 60%, 0.04);
+  --bg-gradient-2: hsla(180, 90%, 50%, 0.03);
+
+  /* Flipped Slate Palette - Light Mode */
+  --slate-50: #083344;
+  --slate-100: #164e63;
+  --slate-200: #155e75;
+  --slate-300: #0e7490;
+  --slate-400: #0891b2;
+  --slate-500: #06b6d4;
+  --slate-600: #22d3ee;
+  --slate-700: #67e8f9;
+  --slate-800: #a5f3fc;
+  --slate-900: #f5f3ff;
+  --slate-950: #ffffff;
+}
+
 @layer base {
   * {
     border-color: var(--color-border);

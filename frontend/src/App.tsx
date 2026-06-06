@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import axios from 'axios';
-import { LayoutDashboard, Database, Settings as SettingsIcon, ChevronRight, X, Sun, Moon, Menu, Camera, MessageSquare, History, CheckCircle2, LogOut, User as UserIcon, TrendingUp, MapPin, ShieldAlert, Compass, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Database, Settings as SettingsIcon, ChevronRight, X, Sun, Moon, Menu, Camera, MessageSquare, History, CheckCircle2, LogOut, User as UserIcon, TrendingUp, MapPin, ShieldAlert, Compass, Sparkles, Bot } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Dashboard from './pages/Dashboard';
 import EbayInventory from './pages/EbayInventory';
@@ -9,6 +9,7 @@ import MobileCapture from './pages/MobileCapture';
 import SalesDashboard from './pages/SalesDashboard';
 import ThriftProspector from './pages/ThriftProspector';
 import AdminDashboard from './pages/AdminDashboard';
+import AskMavey from './pages/AskMavey';
 import UserTour from './components/UserTour';
 
 const API_BASE = '/api';
@@ -35,7 +36,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenFeedback, onOpe
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/sales', label: 'Sales Dashboard', icon: TrendingUp },
     { path: '/ebay', label: 'eBay Inventory', icon: Database },
-    { path: '/prospecting', label: 'Sourcing Route', icon: MapPin }
+    { path: '/prospecting', label: 'Sourcing Route', icon: MapPin },
+    { path: '/mavey', label: 'Ask Mavey', icon: Bot }
   ];
 
   if (user && user.role === 'admin') {
@@ -143,11 +145,11 @@ interface AppContentProps {
   setIsSettingsOpen: (open: boolean) => void;
   theme: 'dark' | 'light';
   setTheme: (t: 'dark' | 'light') => void;
-  themePreset: 'tech' | 'botanical' | 'aurora';
-  setThemePreset: (p: 'tech' | 'botanical' | 'aurora') => void;
+  themePreset: 'tech' | 'botanical' | 'aurora' | 'rgb' | 'genz';
+  setThemePreset: (p: 'tech' | 'botanical' | 'aurora' | 'rgb' | 'genz') => void;
   ebayEnv: 'sandbox' | 'production';
   setEbayEnv: (env: 'sandbox' | 'production') => void;
-  handleSaveSettings: (t: 'dark' | 'light', env: 'sandbox' | 'production', preset: 'tech' | 'botanical' | 'aurora') => void;
+  handleSaveSettings: (t: 'dark' | 'light', env: 'sandbox' | 'production', preset: 'tech' | 'botanical' | 'aurora' | 'rgb' | 'genz') => void;
   user: any;
   onLogout: () => void;
 }
@@ -215,6 +217,7 @@ function AppContent({
     { path: '/sales', label: 'Sales Dashboard', icon: TrendingUp },
     { path: '/ebay', label: 'eBay Inventory', icon: Database },
     { path: '/prospecting', label: 'Sourcing Route', icon: MapPin },
+    { path: '/mavey', label: 'Ask Mavey', icon: Bot },
     { path: '/mobile', label: 'Mobile Photo Capture', icon: Camera }
   ];
 
@@ -354,6 +357,7 @@ function AppContent({
           <Route path="/sales" element={<SalesDashboard />} />
           <Route path="/ebay" element={<EbayInventory />} />
           <Route path="/prospecting" element={<ThriftProspector />} />
+          <Route path="/mavey" element={<AskMavey />} />
           {user && user.role === 'admin' && (
             <Route path="/admin" element={<AdminDashboard />} />
           )}
@@ -424,7 +428,7 @@ function AppContent({
                     <h4 className="font-semibold text-sm">Design Theme</h4>
                     <p className="text-xs text-slate-500 mt-1">Select your colors and typography style</p>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                     <button
                       type="button"
                       onClick={() => setThemePreset('tech')}
@@ -460,6 +464,30 @@ function AppContent({
                     >
                       <span className="text-xs font-semibold">Aurora</span>
                       <span className="text-[9px] font-normal opacity-70">Indigo / Teal</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setThemePreset('rgb')}
+                      className={`px-2 py-3 rounded-xl border transition-all text-xs font-bold flex flex-col items-center gap-1 cursor-pointer text-center ${
+                        themePreset === 'rgb'
+                          ? 'bg-red-500/10 text-red-500 border-red-500/30 shadow-sm shadow-red-500/5'
+                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-800'
+                      }`}
+                    >
+                      <span className="text-xs font-semibold">RGB</span>
+                      <span className="text-[9px] font-normal opacity-70">Chroma Keyboard</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setThemePreset('genz')}
+                      className={`px-2 py-3 rounded-xl border transition-all text-xs font-bold flex flex-col items-center gap-1 cursor-pointer text-center ${
+                        themePreset === 'genz'
+                          ? 'bg-pink-500/10 text-pink-500 border-pink-500/30 shadow-sm shadow-pink-500/5'
+                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-800'
+                      }`}
+                    >
+                      <span className="text-xs font-semibold">Y2K Cyber</span>
+                      <span className="text-[9px] font-normal opacity-70">Neon Pink / Cyan</span>
                     </button>
                   </div>
                 </div>
@@ -778,8 +806,8 @@ function AppContent({
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [themePreset, setThemePreset] = useState<'tech' | 'botanical' | 'aurora'>(
-    (localStorage.getItem('theme_preset') as 'tech' | 'botanical' | 'aurora') || 'tech'
+  const [themePreset, setThemePreset] = useState<'tech' | 'botanical' | 'aurora' | 'rgb' | 'genz'>(
+    (localStorage.getItem('theme_preset') as 'tech' | 'botanical' | 'aurora' | 'rgb' | 'genz') || 'tech'
   );
   const [ebayEnv, setEbayEnv] = useState<'sandbox' | 'production'>('sandbox');
   
@@ -906,18 +934,22 @@ function App() {
       document.documentElement.classList.remove('light');
     }
 
-    document.documentElement.classList.remove('theme-botanical', 'theme-aurora');
+    document.documentElement.classList.remove('theme-botanical', 'theme-aurora', 'theme-rgb', 'theme-genz');
     if (p === 'botanical') {
       document.documentElement.classList.add('theme-botanical');
     } else if (p === 'aurora') {
       document.documentElement.classList.add('theme-aurora');
+    } else if (p === 'rgb') {
+      document.documentElement.classList.add('theme-rgb');
+    } else if (p === 'genz') {
+      document.documentElement.classList.add('theme-genz');
     }
   };
 
   const handleSaveSettings = async (
     updatedTheme: 'dark' | 'light', 
     updatedEnv: 'sandbox' | 'production',
-    updatedPreset: 'tech' | 'botanical' | 'aurora'
+    updatedPreset: 'tech' | 'botanical' | 'aurora' | 'rgb' | 'genz'
   ) => {
     try {
       await axios.post(`${API_BASE}/settings`, {
@@ -1006,6 +1038,16 @@ function App() {
           return {
             color1: 'bg-purple-600/12',
             color2: 'bg-teal-500/10',
+          };
+        case 'rgb':
+          return {
+            color1: 'bg-green-500/15',
+            color2: 'bg-emerald-600/10',
+          };
+        case 'genz':
+          return {
+            color1: 'bg-pink-600/15',
+            color2: 'bg-cyan-500/12',
           };
         default:
           return {

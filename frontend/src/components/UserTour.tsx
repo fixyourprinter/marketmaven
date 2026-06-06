@@ -60,6 +60,11 @@ const UserTour: React.FC<UserTourProps> = ({ isOpen, onClose, userRole }) => {
       title: "Sourcing Analytics Leaderboard",
       description: "Track which thrift stores or estate sales yield the highest ROI and net profit. Use these rankings to focus your sourcing capital on high-yield hubs.",
       route: "/prospecting"
+    },
+    {
+      title: "Ask Mavey (AI Reseller Copilot) 🤖",
+      description: "Ask Mavey to search your inventory, look up specific item details, suggest titles, or run automated actions (like favoriting, writing notes, and editing items) via natural chat.",
+      route: "/mavey"
     }
   ];
 
