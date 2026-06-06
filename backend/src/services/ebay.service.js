@@ -1609,9 +1609,6 @@ function getMockSalesDashboardData() {
   };
 }
 
-  return items;
-}
-
 function escapeXml(unsafe) {
   if (!unsafe) return '';
   return unsafe.replace(/[<>&'"]/g, function (c) {
