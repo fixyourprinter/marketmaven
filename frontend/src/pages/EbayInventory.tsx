@@ -84,6 +84,10 @@ const COLUMN_LABELS: Record<string, string> = {
 };
 
 const EbayInventory: React.FC = () => {
+  const getItemKey = (item: InventoryItem) => {
+    return item.listingId ? `id-${item.listingId}` : `sku-${item.sku}`;
+  };
+
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -147,12 +151,12 @@ const EbayInventory: React.FC = () => {
     fetchInventory();
   }, []);
 
-  const toggleSelect = (sku: string) => {
+  const toggleSelect = (itemKey: string) => {
     const newSelected = new Set(selectedSkus);
-    if (newSelected.has(sku)) {
-      newSelected.delete(sku);
+    if (newSelected.has(itemKey)) {
+      newSelected.delete(itemKey);
     } else {
-      newSelected.add(sku);
+      newSelected.add(itemKey);
     }
     setSelectedSkus(newSelected);
   };
@@ -161,7 +165,7 @@ const EbayInventory: React.FC = () => {
     if (selectedSkus.size === filteredItems.length) {
       setSelectedSkus(new Set());
     } else {
-      setSelectedSkus(new Set(filteredItems.map(i => i.sku)));
+      setSelectedSkus(new Set(filteredItems.map(getItemKey)));
     }
   };
 
@@ -350,7 +354,7 @@ const EbayInventory: React.FC = () => {
     setIsDiagnosing(true);
     setBulkProgress("Loading item details from eBay...");
     try {
-      const selectedItemsList = items.filter(item => selectedSkus.has(item.sku));
+      const selectedItemsList = items.filter(item => selectedSkus.has(getItemKey(item)));
       const diagnosed = [];
       
       let count = 0;
@@ -435,7 +439,7 @@ const EbayInventory: React.FC = () => {
   const saveManualBulk = async () => {
     setLoading(true);
     try {
-      const selectedItemsList = items.filter(item => selectedSkus.has(item.sku));
+      const selectedItemsList = items.filter(item => selectedSkus.has(getItemKey(item)));
       const payloadItems = selectedItemsList.map(item => {
         const isPrice = bulkField === 'StartPrice';
         const isQty = bulkField === 'Quantity';
@@ -497,10 +501,11 @@ const EbayInventory: React.FC = () => {
     }
   };
 
-  const handleDelete = async (sku: string) => {
-    if (!confirm(`Are you sure you want to delete SKU: ${sku} from eBay? This cannot be undone.`)) return;
+  const handleDelete = async (item: InventoryItem) => {
+    const identifier = item.isTraditional ? `TRADITIONAL-${item.listingId}` : item.sku;
+    if (!confirm(`Are you sure you want to delete this listing from eBay? This cannot be undone.`)) return;
     try {
-      await axios.delete(`${API_BASE}/ebay/inventory/${sku}`);
+      await axios.delete(`${API_BASE}/ebay/inventory/${identifier}`);
       alert('Item deleted successfully from eBay!');
       fetchInventory();
     } catch (error) {
@@ -511,11 +516,12 @@ const EbayInventory: React.FC = () => {
   const [expandedSku, setExpandedSku] = useState<string | null>(null);
 
   const handleToggleExpand = async (item: InventoryItem) => {
-    if (expandedSku === item.sku) {
+    const key = getItemKey(item);
+    if (expandedSku === key) {
       setExpandedSku(null);
       return;
     }
-    setExpandedSku(item.sku);
+    setExpandedSku(key);
 
     if (item.isTraditional && item.listingId && !item.product.description) {
       try {
@@ -528,7 +534,7 @@ const EbayInventory: React.FC = () => {
         }
 
         setItems(prevItems => prevItems.map(prevItem => {
-          if (prevItem.sku === item.sku) {
+          if (getItemKey(prevItem) === key) {
             return {
               ...prevItem,
               price: detailRes.data.price || prevItem.price,
@@ -1067,7 +1073,7 @@ const EbayInventory: React.FC = () => {
                     
                     <div className="space-y-4">
                       {diagnosedItems.map((item, idx) => (
-                        <div key={item.sku} className="bg-white/[0.02] border border-white/5 rounded-xl p-5 space-y-4 text-left">
+                        <div key={item.listingId ? `id-${item.listingId}` : `sku-${item.sku}-${idx}`} className="bg-white/[0.02] border border-white/5 rounded-xl p-5 space-y-4 text-left">
                           <div>
                             <p className="text-xs font-bold text-blue-400 mb-1">SKU: {item.sku} {item.listingId ? `(ID: ${item.listingId})` : ''}</p>
                             <p className="text-sm font-semibold text-slate-200 uppercase tracking-tight italic font-serif leading-tight">{item.title}</p>
@@ -1377,16 +1383,16 @@ const EbayInventory: React.FC = () => {
             <tbody className="divide-y divide-white/5">
               <AnimatePresence>
                 {sortedItems.map((item) => (
-                  <React.Fragment key={item.sku}>
+                  <React.Fragment key={getItemKey(item)}>
                     <motion.tr 
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       onClick={() => handleToggleExpand(item)}
-                      className={`group hover:bg-slate-900/10 transition-all cursor-pointer ${selectedSkus.has(item.sku) ? 'bg-blue-500/5 ring-1 ring-blue-500/20' : 'bg-slate-950/20'}`}
+                      className={`group hover:bg-slate-900/10 transition-all cursor-pointer ${selectedSkus.has(getItemKey(item)) ? 'bg-blue-500/5 ring-1 ring-blue-500/20' : 'bg-slate-950/20'}`}
                     >
                       <td className="py-6 pl-4 rounded-l-xl">
-                        <button onClick={(e) => { e.stopPropagation(); toggleSelect(item.sku); }} className="text-slate-500 hover:text-blue-400">
-                          {selectedSkus.has(item.sku) ? <CheckSquare size={20} className="text-blue-400" /> : <Square size={20} />}
+                        <button onClick={(e) => { e.stopPropagation(); toggleSelect(getItemKey(item)); }} className="text-slate-500 hover:text-blue-400">
+                          {selectedSkus.has(getItemKey(item)) ? <CheckSquare size={20} className="text-blue-400" /> : <Square size={20} />}
                         </button>
                       </td>
                       <td className="py-6 max-w-xl">
@@ -1545,7 +1551,7 @@ const EbayInventory: React.FC = () => {
                              <Edit2 size={16} className={editingItemLoading ? "animate-spin" : ""} />
                            </button>
                           <button 
-                            onClick={(e) => { e.stopPropagation(); handleDelete(item.sku); }}
+                            onClick={(e) => { e.stopPropagation(); handleDelete(item); }}
                             className="p-3 glass rounded-xl hover:bg-red-600 transition-all hover:text-white group/btn"
                           >
                             <Trash2 size={16} />
@@ -1553,7 +1559,7 @@ const EbayInventory: React.FC = () => {
                         </div>
                       </td>
                     </motion.tr>
-                    {expandedSku === item.sku && (
+                    {expandedSku === getItemKey(item) && (
                       <motion.tr
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}

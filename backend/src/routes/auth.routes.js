@@ -106,11 +106,32 @@ router.get('/ebay/inventory', authenticateUser, async (req, res) => {
   }
 });
 
+// Get sales dashboard data
+router.get('/ebay/sales-dashboard', authenticateUser, async (req, res) => {
+  try {
+    const dashboardData = await ebayService.getSalesDashboard(req.userId);
+    res.json(dashboardData);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get specific item details
 router.get('/ebay/inventory/:sku', authenticateUser, async (req, res) => {
   try {
-    const item = await ebayService.getInventoryItem(req.params.sku, req.userId);
-    res.json(item);
+    const sku = req.params.sku;
+    if (sku.startsWith('TRADITIONAL-')) {
+      const listingId = sku.replace('TRADITIONAL-', '');
+      const details = await ebayService.fetchExternalItemDetails(listingId, req.userId);
+      res.json({
+        price: details.price,
+        description: details.description,
+        specifics: details.specifics
+      });
+    } else {
+      const item = await ebayService.getInventoryItem(sku, req.userId);
+      res.json(item);
+    }
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
