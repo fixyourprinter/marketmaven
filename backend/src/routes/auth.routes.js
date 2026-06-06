@@ -405,6 +405,31 @@ router.delete('/feedback/:id', authenticateUser, (req, res) => {
   );
 });
 
+// GET geocode address using Nominatim (proxied to avoid client-side CORS and User-Agent blocking)
+router.get('/prospecting/geocode', authenticateUser, async (req, res) => {
+  const { address } = req.query;
+  if (!address) {
+    return res.status(400).json({ error: 'Address query parameter is required' });
+  }
+
+  try {
+    const query = encodeURIComponent(address);
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${query}`;
+    
+    const response = await axios.get(url, {
+      headers: {
+        'User-Agent': 'MarketMaven-App/1.0 (contact@marketmaven.com)',
+        'Accept': 'application/json'
+      }
+    });
+
+    res.json(response.data);
+  } catch (error) {
+    console.error('[auth.routes] Geocoding failed:', error.message);
+    res.status(500).json({ error: 'Failed to geocode address' });
+  }
+});
+
 // GET all prospecting locations
 router.get('/prospecting/locations', authenticateUser, (req, res) => {
   db.all('SELECT * FROM prospect_locations WHERE user_id = ? ORDER BY created_at DESC', [req.userId], (err, rows) => {

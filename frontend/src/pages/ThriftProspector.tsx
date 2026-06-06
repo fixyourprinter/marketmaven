@@ -99,7 +99,7 @@ const ThriftProspector: React.FC = () => {
     
     try {
       const query = encodeURIComponent(startOverride.trim());
-      const geoRes = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${query}`);
+      const geoRes = await axios.get(`${API_BASE}/prospecting/geocode?address=${query}`);
       if (geoRes.data && geoRes.data.length > 0) {
         const lat = parseFloat(geoRes.data[0].lat);
         const lng = parseFloat(geoRes.data[0].lon);
@@ -400,24 +400,24 @@ const ThriftProspector: React.FC = () => {
 
     if (formAddress.trim()) {
       try {
-        // Client-side geocoding utilizing OpenStreetMap Nominatim
-        // Scoped to San Jose area if possible, or broad query
         const query = encodeURIComponent(formAddress);
-        const geoRes = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${query}`);
+        const geoRes = await axios.get(`${API_BASE}/prospecting/geocode?address=${query}`);
         if (geoRes.data && geoRes.data.length > 0) {
           lat = parseFloat(geoRes.data[0].lat);
           lng = parseFloat(geoRes.data[0].lon);
         } else {
-          setGeocodeError('Could not find location coordinates on the map. Saving with mock center coordinates...');
-          // Mock coordinates in San Jose CA for testing
-          lat = 37.295 + (Math.random() * 0.08 - 0.04);
-          lng = -121.890 + (Math.random() * 0.08 - 0.04);
+          setGeocodeError('Could not find location coordinates on the map. Saving near your current starting location...');
+          const baseLat = userCoords?.lat || 37.295;
+          const baseLng = userCoords?.lng || -121.890;
+          lat = baseLat + (Math.random() * 0.04 - 0.02);
+          lng = baseLng + (Math.random() * 0.04 - 0.02);
         }
       } catch (err) {
         console.error('Geocoding error:', err);
-        // Fallback coordinates
-        lat = 37.295 + (Math.random() * 0.08 - 0.04);
-        lng = -121.890 + (Math.random() * 0.08 - 0.04);
+        const baseLat = userCoords?.lat || 37.295;
+        const baseLng = userCoords?.lng || -121.890;
+        lat = baseLat + (Math.random() * 0.04 - 0.02);
+        lng = baseLng + (Math.random() * 0.04 - 0.02);
       }
     }
 
