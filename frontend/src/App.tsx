@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import axios from 'axios';
-import { LayoutDashboard, Database, Settings as SettingsIcon, ChevronRight, X, Sun, Moon, Menu, Camera, MessageSquare, History, CheckCircle2, LogOut, User as UserIcon, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Database, Settings as SettingsIcon, ChevronRight, X, Sun, Moon, Menu, Camera, MessageSquare, History, CheckCircle2, LogOut, User as UserIcon, TrendingUp, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Dashboard from './pages/Dashboard';
 import EbayInventory from './pages/EbayInventory';
 import MobileCapture from './pages/MobileCapture';
 import SalesDashboard from './pages/SalesDashboard';
+import ThriftProspector from './pages/ThriftProspector';
 
 const API_BASE = '/api';
 
@@ -31,6 +32,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenFeedback, onOpe
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/sales', label: 'Sales Dashboard', icon: TrendingUp },
     { path: '/ebay', label: 'eBay Inventory', icon: Database },
+    { path: '/prospecting', label: 'Sourcing Route', icon: MapPin }
   ];
 
   const handleEbayLogin = async () => {
@@ -185,6 +187,7 @@ function AppContent({
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/sales', label: 'Sales Dashboard', icon: TrendingUp },
     { path: '/ebay', label: 'eBay Inventory', icon: Database },
+    { path: '/prospecting', label: 'Sourcing Route', icon: MapPin },
     { path: '/mobile', label: 'Mobile Photo Capture', icon: Camera }
   ];
 
@@ -311,6 +314,7 @@ function AppContent({
           <Route path="/" element={<Dashboard />} />
           <Route path="/sales" element={<SalesDashboard />} />
           <Route path="/ebay" element={<EbayInventory />} />
+          <Route path="/prospecting" element={<ThriftProspector />} />
           <Route 
             path="/mobile" 
             element={

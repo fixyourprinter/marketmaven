@@ -277,18 +277,21 @@ router.put('/items/:id', authenticateUser, (req, res) => {
   const { id } = req.params;
   const {
     title, brand, size, weight, material, country_of_origin,
-    age, retail_price, etsy_tags, style_details, category, condition
+    age, retail_price, etsy_tags, style_details, category, condition,
+    sourcing_location_id, purchase_price
   } = req.body;
 
   db.run(
     `UPDATE items SET 
       title = ?, brand = ?, size = ?, weight = ?, material = ?, 
       country_of_origin = ?, age = ?, retail_price = ?, etsy_tags = ?, 
-      style_details = ?, category = ?, condition = ?
+      style_details = ?, category = ?, condition = ?,
+      sourcing_location_id = ?, purchase_price = ?
      WHERE id = ? AND user_id = ?`,
     [
       title, brand, size, weight, material, country_of_origin,
       age, retail_price, etsy_tags, style_details, category, condition,
+      sourcing_location_id || null, purchase_price || 0.0,
       id, req.userId
     ],
     function(err) {

@@ -191,5 +191,44 @@ async function extractAspectsFromText(title, description) {
   }
 }
 
-module.exports = { processImages, extractAspectsFromText };
+async function generateSearchQueryFromImage(imagePath) {
+  console.log(`[AIService] generateSearchQueryFromImage starting... Using model: "${VISION_MODEL}"`);
+  try {
+    const base64Image = fs.readFileSync(imagePath, { encoding: 'base64' });
+    const prompt = `
+      Analyze this image of a clothing item or product. Describe it in 4-6 highly specific keywords (e.g. brand, style, model, color, gender/size if visible) to create a perfect eBay search query for sold listings.
+      Return a JSON object containing:
+      {
+        "query": "the optimized search query string"
+      }
+      Ensure the query is concise, accurate, and contains only keywords that would appear in an eBay title. E.g. "Kut From The Kloth Alanna Jeans". Do not use punctuation or quotes in the query.
+    `;
+
+    const response = await axios.post(`${OLLAMA_URL}/api/chat`, {
+      model: VISION_MODEL,
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+          images: [base64Image]
+        }
+      ],
+      stream: false,
+      format: 'json'
+    }, {
+      timeout: 90000
+    });
+
+    const parsed = JSON.parse(response.data.message.content);
+    return parsed.query || '';
+  } catch (error) {
+    if (error.response) {
+      console.error('Ollama Visual Query Error Response:', error.response.data);
+    }
+    console.error('Error in visual search query generation:', error.message);
+    throw new Error('Visual AI query generation failed');
+  }
+}
+
+module.exports = { processImages, extractAspectsFromText, generateSearchQueryFromImage };
 

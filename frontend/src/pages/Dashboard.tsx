@@ -25,6 +25,8 @@ interface ListingItem {
   status: string;
   images: string;
   created_at: string;
+  sourcing_location_id?: number;
+  purchase_price?: number;
 }
 
 const AI_STATUS_MESSAGES = [
@@ -53,6 +55,16 @@ const Dashboard: React.FC = () => {
   const [importItemId, setImportItemId] = useState<string>('');
   const [isImporting, setIsImporting] = useState<boolean>(false);
   const [importError, setImportError] = useState<string>('');
+  const [sourcingLocations, setSourcingLocations] = useState<any[]>([]);
+
+  const fetchLocations = async () => {
+    try {
+      const response = await axios.get(`${API_BASE}/prospecting/locations`);
+      setSourcingLocations(response.data);
+    } catch (error) {
+      console.error('Failed to fetch sourcing locations', error);
+    }
+  };
 
   // Progressive Photo States
   const [step1Images, setStep1Images] = useState<{
@@ -160,6 +172,7 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchItems();
     fetchFeedback();
+    fetchLocations();
   }, []);
 
   // Poll for background AI processing items
@@ -1224,6 +1237,32 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                                               />
                                             </div>
                                           </div>
+                                          <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                              <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-1">Sourcing Location</label>
+                                              <select 
+                                                className="w-full bg-black/40 border border-white/10 rounded-lg p-3 outline-none text-sm text-slate-200 focus:border-blue-500/50"
+                                                value={editingDraftData.sourcing_location_id || ''}
+                                                onChange={(e) => setEditingDraftData({...editingDraftData, sourcing_location_id: e.target.value ? parseInt(e.target.value, 10) : undefined})}
+                                              >
+                                                <option value="">Select Sourcing Location...</option>
+                                                {sourcingLocations.map(loc => (
+                                                  <option key={loc.id} value={loc.id}>{loc.name} ({loc.type})</option>
+                                                ))}
+                                              </select>
+                                            </div>
+                                            <div>
+                                              <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-1">Sourcing Cost ($)</label>
+                                              <input 
+                                                type="number"
+                                                step="0.01"
+                                                className="w-full bg-black/40 border border-white/10 rounded-lg p-3 outline-none text-sm text-slate-200 focus:border-blue-500/50 font-sans"
+                                                placeholder="0.00"
+                                                value={editingDraftData.purchase_price !== undefined ? editingDraftData.purchase_price : ''}
+                                                onChange={(e) => setEditingDraftData({...editingDraftData, purchase_price: e.target.value ? parseFloat(e.target.value) : 0.0})}
+                                              />
+                                            </div>
+                                          </div>
                                         </div>
                                       </div>
 
@@ -1295,6 +1334,22 @@ ${item.etsy_tags ? `ETSY TAGS:\n${item.etsy_tags}` : ''}`;
                                               <ExternalLink size={12} />
                                               Search Sold Comps
                                             </a>
+                                          </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
+                                          <div>
+                                            <h5 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1">SOURCING SOURCE</h5>
+                                            <p className="text-xs text-slate-300">
+                                              {item.sourcing_location_id 
+                                                ? sourcingLocations.find(l => l.id === item.sourcing_location_id)?.name || 'Unknown Location'
+                                                : 'Not Tracked'}
+                                            </p>
+                                          </div>
+                                          <div>
+                                            <h5 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1">SOURCING COST</h5>
+                                            <p className="text-xs font-mono text-slate-350">
+                                              {item.purchase_price ? `$${item.purchase_price.toFixed(2)}` : '$0.00'}
+                                            </p>
                                           </div>
                                         </div>
                                       </div>

@@ -56,6 +56,52 @@ const db = new sqlite3.Database(dbPath, (err) => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`);
 
+      // 4.5. Create prospect_locations table
+      db.run(`CREATE TABLE IF NOT EXISTS prospect_locations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        name TEXT,
+        type TEXT,
+        address TEXT,
+        latitude REAL,
+        longitude REAL,
+        notes TEXT,
+        day_of_week TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`);
+
+      // Seed default locations
+      db.get("SELECT COUNT(*) as count FROM prospect_locations", [], (err, row) => {
+        if (!err && row && row.count === 0) {
+          console.log("Seeding default prospect locations...");
+          const stmt = db.prepare(`INSERT INTO prospect_locations (user_id, name, type, address, latitude, longitude, notes, day_of_week) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+          
+          const defaults = [
+            [3, 'Goodwill Store', 'thrift', '845 Blossom Hill Rd, San Jose, CA 95123', 37.248, -121.859, 'Great for Talbots and LOFT dresses. Go early on Wednesdays for tag sales.', 'Everyday'],
+            [4, 'Goodwill Store', 'thrift', '845 Blossom Hill Rd, San Jose, CA 95123', 37.248, -121.859, 'Great for Talbots and LOFT dresses. Go early on Wednesdays for tag sales.', 'Everyday'],
+            [5, 'Goodwill Store', 'thrift', '845 Blossom Hill Rd, San Jose, CA 95123', 37.248, -121.859, 'Great for Talbots and LOFT dresses. Go early on Wednesdays for tag sales.', 'Everyday'],
+            [3, 'Savers Thrift Store', 'thrift', '1060 S Bascom Ave, San Jose, CA 95128', 37.311, -121.931, 'Excellent denim selection. Found several Kut from the Kloth and Lucky Brand jeans here.', 'Everyday'],
+            [4, 'Savers Thrift Store', 'thrift', '1060 S Bascom Ave, San Jose, CA 95128', 37.311, -121.931, 'Excellent denim selection. Found several Kut from the Kloth and Lucky Brand jeans here.', 'Everyday'],
+            [5, 'Savers Thrift Store', 'thrift', '1060 S Bascom Ave, San Jose, CA 95128', 37.311, -121.931, 'Excellent denim selection. Found several Kut from the Kloth and Lucky Brand jeans here.', 'Everyday'],
+            [3, 'Hope Thrift', 'thrift', '707 Menlo Dr, San Jose, CA 95128', 37.319, -121.936, 'Nice vintage section. Check tags for half-price colors.', 'Everyday'],
+            [4, 'Hope Thrift', 'thrift', '707 Menlo Dr, San Jose, CA 95128', 37.319, -121.936, 'Nice vintage section. Check tags for half-price colors.', 'Everyday'],
+            [5, 'Hope Thrift', 'thrift', '707 Menlo Dr, San Jose, CA 95128', 37.319, -121.936, 'Nice vintage section. Check tags for half-price colors.', 'Everyday'],
+            [3, 'Capitol Flea Market', 'auction', '3630 Monterey Rd, San Jose, CA 95111', 37.288, -121.839, 'Yard sale lots and estate liquidators. Need cash and arrive at 6 AM.', 'Sunday'],
+            [4, 'Capitol Flea Market', 'auction', '3630 Monterey Rd, San Jose, CA 95111', 37.288, -121.839, 'Yard sale lots and estate liquidators. Need cash and arrive at 6 AM.', 'Sunday'],
+            [5, 'Capitol Flea Market', 'auction', '3630 Monterey Rd, San Jose, CA 95111', 37.288, -121.839, 'Yard sale lots and estate liquidators. Need cash and arrive at 6 AM.', 'Sunday'],
+            [3, 'Alum Rock Estate Sale', 'yard_sale', '2200 Alum Rock Ave, San Jose, CA 95116', 37.362, -121.838, 'Frequent yard sales and estate liquidations on weekends.', 'Saturday'],
+            [4, 'Alum Rock Estate Sale', 'yard_sale', '2200 Alum Rock Ave, San Jose, CA 95116', 37.362, -121.838, 'Frequent yard sales and estate liquidations on weekends.', 'Saturday'],
+            [5, 'Alum Rock Estate Sale', 'yard_sale', '2200 Alum Rock Ave, San Jose, CA 95116', 37.362, -121.838, 'Frequent yard sales and estate liquidations on weekends.', 'Saturday']
+          ];
+          
+          defaults.forEach(item => {
+            stmt.run(item);
+          });
+          stmt.finalize();
+          console.log("SUCCESS: Seeded default prospect locations.");
+        }
+      });
+
       // 5. Run migrations inside callbacks in a serialized way
       db.all("PRAGMA table_info(items)", (err, rows) => {
         if (err) {
@@ -72,7 +118,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
           ['age', 'TEXT'],
           ['retail_price', 'TEXT'],
           ['etsy_tags', 'TEXT'],
-          ['user_id', 'INTEGER DEFAULT 1']
+          ['user_id', 'INTEGER DEFAULT 1'],
+          ['sourcing_location_id', 'INTEGER'],
+          ['purchase_price', 'REAL DEFAULT 0.0']
         ];
 
         requiredColumns.forEach(([colName, colType]) => {
