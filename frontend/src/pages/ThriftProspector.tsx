@@ -99,7 +99,7 @@ const ThriftProspector: React.FC = () => {
     
     try {
       const query = encodeURIComponent(startOverride.trim());
-      const geoRes = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${query}`);
+      const geoRes = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${query}`);
       if (geoRes.data && geoRes.data.length > 0) {
         const lat = parseFloat(geoRes.data[0].lat);
         const lng = parseFloat(geoRes.data[0].lon);
@@ -256,13 +256,25 @@ const ThriftProspector: React.FC = () => {
       }
     });
 
-    // Fit map bounds to show all markers if any exist
-    if (locations.some(l => l.latitude && l.longitude)) {
+    // Fit map bounds to show all markers and user location
+    const bounds = L.latLngBounds([]);
+    locations.forEach(loc => {
+      if (loc.latitude && loc.longitude) {
+        bounds.extend([loc.latitude, loc.longitude]);
+      }
+    });
+    if (userCoords) {
+      bounds.extend([userCoords.lat, userCoords.lng]);
+    }
+    
+    if (bounds.isValid()) {
       try {
-        map.fitBounds(markersGroup.getBounds(), { padding: [40, 40] });
+        map.fitBounds(bounds, { padding: [40, 40] });
       } catch (e) {
         // Fallback bounds
       }
+    } else if (userCoords) {
+      map.setView([userCoords.lat, userCoords.lng], 12);
     }
 
     return () => {
@@ -391,7 +403,7 @@ const ThriftProspector: React.FC = () => {
         // Client-side geocoding utilizing OpenStreetMap Nominatim
         // Scoped to San Jose area if possible, or broad query
         const query = encodeURIComponent(formAddress);
-        const geoRes = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${query}`);
+        const geoRes = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${query}`);
         if (geoRes.data && geoRes.data.length > 0) {
           lat = parseFloat(geoRes.data[0].lat);
           lng = parseFloat(geoRes.data[0].lon);
