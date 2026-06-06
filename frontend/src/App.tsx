@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import axios from 'axios';
-import { LayoutDashboard, Database, Settings as SettingsIcon, ChevronRight, X, Sun, Moon, Menu, Camera, MessageSquare, History, CheckCircle2, LogOut, User as UserIcon, TrendingUp, MapPin, ShieldAlert } from 'lucide-react';
+import { LayoutDashboard, Database, Settings as SettingsIcon, ChevronRight, X, Sun, Moon, Menu, Camera, MessageSquare, History, CheckCircle2, LogOut, User as UserIcon, TrendingUp, MapPin, ShieldAlert, Compass, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Dashboard from './pages/Dashboard';
 import EbayInventory from './pages/EbayInventory';
@@ -9,6 +9,7 @@ import MobileCapture from './pages/MobileCapture';
 import SalesDashboard from './pages/SalesDashboard';
 import ThriftProspector from './pages/ThriftProspector';
 import AdminDashboard from './pages/AdminDashboard';
+import UserTour from './components/UserTour';
 
 const API_BASE = '/api';
 
@@ -22,11 +23,12 @@ interface SidebarProps {
   onOpenSettings: () => void;
   onOpenFeedback: () => void;
   onOpenVersionNotes: () => void;
+  onOpenTour: () => void;
   user: any;
   onLogout: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenFeedback, onOpenVersionNotes, user, onLogout }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenFeedback, onOpenVersionNotes, onOpenTour, user, onLogout }) => {
   const location = useLocation();
   
   const navItems = [
@@ -84,7 +86,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenFeedback, onOpe
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
               location.pathname === item.path 
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                : 'text-slate-450 hover:text-white hover:bg-slate-900'
             }`}
           >
             <item.icon size={20} />
@@ -104,21 +106,28 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenFeedback, onOpe
         </button>
         <button 
           onClick={onOpenFeedback}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-400 hover:text-white hover:bg-slate-900 rounded-xl transition-all cursor-pointer text-sm font-medium"
+          className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-450 hover:text-white hover:bg-slate-900 rounded-xl transition-all cursor-pointer text-sm font-medium"
         >
           <MessageSquare size={18} className="text-blue-500" />
           <span>Wife's Feedback Box</span>
         </button>
         <button 
           onClick={onOpenVersionNotes}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-400 hover:text-white hover:bg-slate-900 rounded-xl transition-all cursor-pointer text-sm font-medium"
+          className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-450 hover:text-white hover:bg-slate-900 rounded-xl transition-all cursor-pointer text-sm font-medium"
         >
           <History size={18} className="text-blue-500" />
           <span>What's New (v1.2.0)</span>
         </button>
         <button 
+          onClick={onOpenTour}
+          className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-450 hover:text-white hover:bg-slate-900 rounded-xl transition-all cursor-pointer text-sm font-medium"
+        >
+          <Compass size={18} className="text-blue-500 animate-spin-slow" />
+          <span>Quick Tour</span>
+        </button>
+        <button 
           onClick={onOpenSettings}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-400 hover:text-white hover:bg-slate-900 rounded-xl transition-all cursor-pointer text-sm font-medium"
+          className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-450 hover:text-white hover:bg-slate-900 rounded-xl transition-all cursor-pointer text-sm font-medium"
         >
           <SettingsIcon size={18} />
           <span className="font-medium">Settings</span>
@@ -171,6 +180,19 @@ function AppContent({
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [feedbackSuccess, setFeedbackSuccess] = useState(false);
 
+  // Tour walkthrough states
+  const [isTourOpen, setIsTourOpen] = useState(false);
+  const [showWelcomeTourPrompt, setShowWelcomeTourPrompt] = useState(false);
+
+  useEffect(() => {
+    if (user && localStorage.getItem('mm_tour_completed') !== 'true') {
+      const timer = setTimeout(() => {
+        setShowWelcomeTourPrompt(true);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [user]);
+
   useEffect(() => {
     const handleResize = () => {
       setIsMobileScreen(window.innerWidth < 1024);
@@ -211,6 +233,7 @@ function AppContent({
           onOpenSettings={onOpenSettings} 
           onOpenFeedback={() => setIsFeedbackOpen(true)}
           onOpenVersionNotes={() => setIsVersionNotesOpen(true)}
+          onOpenTour={() => setIsTourOpen(true)}
           user={user}
           onLogout={onLogout}
         />
@@ -283,10 +306,17 @@ function AppContent({
                   </button>
                   <button 
                     onClick={() => { setIsMobileMenuOpen(false); setIsVersionNotesOpen(true); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-900 rounded-xl transition-all cursor-pointer font-bold border border-slate-900 text-xs justify-center"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-slate-450 hover:text-white hover:bg-slate-900 rounded-xl transition-all cursor-pointer font-bold border border-slate-900 text-xs justify-center"
                   >
                     <History size={16} className="text-blue-500" />
                     What's New (v1.2.0)
+                  </button>
+                  <button 
+                    onClick={() => { setIsMobileMenuOpen(false); setIsTourOpen(true); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-slate-450 hover:text-white hover:bg-slate-900 rounded-xl transition-all cursor-pointer font-bold border border-slate-900 text-xs justify-center"
+                  >
+                    <Compass size={16} className="text-blue-500 animate-spin-slow" />
+                    Quick Tour
                   </button>
                   <button 
                     onClick={() => { setIsMobileMenuOpen(false); onOpenSettings(); }}
@@ -690,6 +720,57 @@ function AppContent({
           </div>
         )}
       </AnimatePresence>
+
+      {/* Tour & Onboarding Welcomes */}
+      <AnimatePresence>
+        {showWelcomeTourPrompt && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/45 backdrop-blur-[2px]">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="glass-card w-full max-w-sm p-6 border border-blue-500/20 text-center space-y-5 shadow-2xl relative"
+            >
+              <div className="flex flex-col items-center gap-2">
+                <div className="p-3 bg-blue-500/10 rounded-full text-blue-400">
+                  <Sparkles size={24} className="animate-pulse" />
+                </div>
+                <h3 className="font-serif text-base font-bold text-slate-100">Welcome to MarketMaven! 🌟</h3>
+                <p className="text-[11px] text-slate-400 font-sans leading-relaxed">
+                  Would you like a quick 2-minute interactive tour of your new resell workspace features?
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2 font-sans">
+                <button
+                  onClick={() => {
+                    localStorage.setItem('mm_tour_completed', 'true');
+                    setShowWelcomeTourPrompt(false);
+                  }}
+                  className="flex-1 py-2 border border-white/10 hover:bg-slate-900 text-slate-350 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={() => {
+                    setShowWelcomeTourPrompt(false);
+                    setIsTourOpen(true);
+                  }}
+                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-lg shadow-blue-500/10"
+                >
+                  Start Tour
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <UserTour 
+        isOpen={isTourOpen} 
+        onClose={() => setIsTourOpen(false)} 
+        userRole={user?.role} 
+      />
     </div>
   );
 }
@@ -697,7 +778,9 @@ function AppContent({
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [themePreset, setThemePreset] = useState<'tech' | 'botanical' | 'aurora'>('tech');
+  const [themePreset, setThemePreset] = useState<'tech' | 'botanical' | 'aurora'>(
+    (localStorage.getItem('theme_preset') as 'tech' | 'botanical' | 'aurora') || 'tech'
+  );
   const [ebayEnv, setEbayEnv] = useState<'sandbox' | 'production'>('sandbox');
   
   // Auth state
@@ -712,6 +795,28 @@ function App() {
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [authActionLoading, setAuthActionLoading] = useState(false);
+
+  // Mouse tracking state for reactive login screen background
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  // Restore theme styles on mount
+  useEffect(() => {
+    const cachedTheme = localStorage.getItem('theme_mode') || 'dark';
+    const cachedPreset = localStorage.getItem('theme_preset') || 'tech';
+    applyThemeStyles(cachedTheme, cachedPreset);
+  }, []);
+
+  // Track mouse coordinates for login background when not logged in
+  useEffect(() => {
+    if (user) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePos({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, [user]);
 
   // Sync token with localstorage and axios defaults
   useEffect(() => {
@@ -793,6 +898,8 @@ function App() {
   }, [user]);
 
   const applyThemeStyles = (t: string, p: string) => {
+    localStorage.setItem('theme_mode', t);
+    localStorage.setItem('theme_preset', p);
     if (t === 'light') {
       document.documentElement.classList.add('light');
     } else {
@@ -888,11 +995,48 @@ function App() {
 
   // If not logged in, render the login/setup wrapper
   if (!user) {
+    const getGlowColors = () => {
+      switch (themePreset) {
+        case 'botanical':
+          return {
+            color1: 'bg-[#B9735D]/14',
+            color2: 'bg-[#718B80]/16',
+          };
+        case 'aurora':
+          return {
+            color1: 'bg-purple-600/12',
+            color2: 'bg-teal-500/10',
+          };
+        default:
+          return {
+            color1: 'bg-blue-600/12',
+            color2: 'bg-purple-600/10',
+          };
+      }
+    };
+    const { color1, color2 } = getGlowColors();
+
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 relative overflow-hidden text-slate-200">
-        {/* Background aurora glows */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/10 blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-purple-500/10 blur-[120px] pointer-events-none" />
+        {/* Background interactive mouse-reactive glows */}
+        <motion.div
+          animate={{
+            x: mousePos.x - 250,
+            y: mousePos.y - 250,
+          }}
+          transition={{ type: 'spring', damping: 30, stiffness: 60, mass: 0.5 }}
+          className={`absolute w-[500px] h-[500px] rounded-full blur-[130px] pointer-events-none ${color1}`}
+          style={{ left: 0, top: 0 }}
+        />
+        <motion.div
+          animate={{
+            x: mousePos.x - 200,
+            y: mousePos.y - 200,
+          }}
+          transition={{ type: 'spring', damping: 45, stiffness: 40, mass: 0.8 }}
+          className={`absolute w-[400px] h-[400px] rounded-full blur-[110px] pointer-events-none ${color2}`}
+          style={{ left: 0, top: 0 }}
+        />
 
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
