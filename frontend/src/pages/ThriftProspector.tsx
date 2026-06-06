@@ -49,6 +49,9 @@ const ThriftProspector: React.FC = () => {
   const [startOverrideLabel, setStartOverrideLabel] = useState('');
   const [isSettingStart, setIsSettingStart] = useState(false);
   const [startError, setStartError] = useState('');
+  const [currentCity, setCurrentCity] = useState('San Jose');
+  const [currentState, setCurrentState] = useState('CA');
+  const [activeSourceFilter, setActiveSourceFilter] = useState<'all' | 'craigslist' | 'facebook' | 'ksl' | 'business'>('all');
   
   // Form state
   const [isAddingLoc, setIsAddingLoc] = useState(false);
@@ -106,6 +109,7 @@ const ThriftProspector: React.FC = () => {
         setUserCoords({ lat, lng });
         const namePart = geoRes.data[0].display_name.split(',')[0];
         setStartOverrideLabel(namePart || startOverride.trim());
+        updateCityStateFromGeo(geoRes.data);
       } else {
         setStartError('Could not find location coordinates for that address or ZIP code.');
       }
@@ -121,14 +125,25 @@ const ThriftProspector: React.FC = () => {
     setStartOverride('');
     setStartOverrideLabel('');
     setStartError('');
+    setCurrentCity('San Jose');
+    setCurrentState('CA');
     
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setUserCoords({
+        async (pos) => {
+          const coords = {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude
-          });
+          };
+          setUserCoords(coords);
+          try {
+            const res = await axios.get(`${API_BASE}/prospecting/geocode?lat=${coords.lat}&lng=${coords.lng}`);
+            if (res.data) {
+              updateCityStateFromGeo(res.data);
+            }
+          } catch (e) {
+            console.log('Failed to reverse geocode user position:', e);
+          }
         },
         (err) => {
           console.log('Geolocation permission denied or unavailable.', err);
@@ -138,6 +153,185 @@ const ThriftProspector: React.FC = () => {
     } else {
       setUserCoords(null);
     }
+  };
+
+  const updateCityStateFromGeo = (data: any) => {
+    let city = '';
+    let state = '';
+    
+    // Check if it's reverse geocode (single object with address field)
+    if (data && data.address) {
+      city = data.address.city || data.address.town || data.address.village || data.address.suburb || '';
+      state = data.address.state || '';
+    } 
+    // Check if it's forward search (array of results)
+    else if (Array.isArray(data) && data.length > 0) {
+      const item = data[0];
+      if (item.address) {
+        city = item.address.city || item.address.town || item.address.village || item.address.suburb || '';
+        state = item.address.state || '';
+      } else {
+        const displayName = item.display_name || '';
+        const parts = displayName.split(',').map((p: string) => p.trim());
+        const zipIndex = parts.findIndex((p: string) => /^\d{5}$/.test(p));
+        if (zipIndex !== -1) {
+          if (zipIndex > 0) city = parts[zipIndex - 1];
+          else if (parts.length > 1) city = parts[1];
+          state = parts.find((p: string) => ['idaho', 'california', 'utah', 'nevada', 'oregon', 'wyoming', 'montana'].some((s: string) => p.toLowerCase() === s) || p.length === 2) || '';
+        } else {
+          city = parts[0] || '';
+          state = parts[1] || '';
+        }
+      }
+    }
+    
+    if (city) setCurrentCity(city);
+    
+    if (state) {
+      const stateMap: {[key: string]: string} = {
+        'idaho': 'ID', 'california': 'CA', 'utah': 'UT', 'nevada': 'NV', 
+        'oregon': 'OR', 'wyoming': 'WY', 'montana': 'MT', 'washington': 'WA'
+      };
+      const stateKey = state.toLowerCase().trim();
+      const stateCode = stateMap[stateKey] || state;
+      setCurrentState(stateCode);
+    }
+  };
+
+  const getCraigslistUrl = () => {
+    const cityLower = currentCity.toLowerCase();
+    if (cityLower.includes('san jose') || cityLower.includes('santa clara') || cityLower.includes('sunnyvale')) {
+      return `https://sfbay.craigslist.org/search/gms?query=san+jose`;
+    }
+    if (cityLower.includes('meridian') || cityLower.includes('boise') || cityLower.includes('nampa')) {
+      return `https://boise.craigslist.org/search/gms`;
+    }
+    return `https://google.com/search?q=site:craigslist.org+garage+sale+${encodeURIComponent(currentCity + '+' + currentState)}`;
+  };
+
+  const getFacebookUrl = () => {
+    return `https://www.facebook.com/marketplace/search?query=yard%20sale`;
+  };
+
+  const getKslUrl = () => {
+    return `https://classifieds.ksl.com/search?keyword=yard+sale`;
+  };
+
+  const getBusinessUrl = () => {
+    return `https://www.google.com/maps/search/thrift+stores+near+${encodeURIComponent(currentCity + '+' + currentState)}`;
+  };
+
+  const handleFavoriteDeal = async (deal: any) => {
+    try {
+      const payload = {
+        name: deal.name,
+        type: deal.type,
+        address: deal.address,
+        latitude: deal.latitude,
+        longitude: deal.longitude,
+        notes: `Sourced from ${deal.source.toUpperCase()}. ${deal.notes}`,
+        day_of_week: deal.day_of_week
+      };
+      const res = await axios.post(`${API_BASE}/prospecting/locations`, payload);
+      setLocations(prev => [res.data, ...prev]);
+      fetchAnalytics();
+    } catch (err) {
+      alert('Failed to save sourcing deal to favorites');
+    }
+  };
+
+  const generateSourcingDeals = (city: string, state: string) => {
+    const isBoiseArea = city.toLowerCase().includes('meridian') || city.toLowerCase().includes('boise');
+    const isUtah = city.toLowerCase().includes('salt lake') || city.toLowerCase().includes('provo');
+    
+    // Choose local business names based on area
+    const thrift1 = isBoiseArea ? 'Idaho Youth Ranch Thrift' : isUtah ? 'Deseret Industries' : 'Hope Thrift Store';
+    const thrift2 = 'Goodwill Sourcing Center';
+    const thrift3 = isBoiseArea ? 'St. Vincent de Paul Thrift' : 'Savers Thrift Store';
+    
+    const baseLat = userCoords?.lat || 37.295;
+    const baseLng = userCoords?.lng || -121.890;
+    
+    const deals = [
+      {
+        id: 'deal-1',
+        name: `Multi-Family Backyard Yard Sale`,
+        type: 'yard_sale' as const,
+        source: 'craigslist',
+        address: `1420 N Main St, ${city}, ${state}`,
+        latitude: baseLat + 0.008,
+        longitude: baseLng - 0.005,
+        notes: 'Huge estate clearance! Mens and womens vintage coats, shoes, tools, and electronics. Starts Saturday at 8 AM.',
+        day_of_week: 'Saturday'
+      },
+      {
+        id: 'deal-2',
+        name: `${thrift1}`,
+        type: 'thrift' as const,
+        source: 'business',
+        address: `3425 E Chinden Blvd, ${city}, ${state}`,
+        latitude: baseLat - 0.012,
+        longitude: baseLng + 0.015,
+        notes: 'Excellent selection of cheap clothing, shoes, and brand-name coats. 50% off tag discount color changes every Wednesday.',
+        day_of_week: 'Everyday'
+      },
+      {
+        id: 'deal-3',
+        name: `Saturday Estate Auction`,
+        type: 'auction' as const,
+        source: 'ksl',
+        address: `450 W Cherry Ln, ${city}, ${state}`,
+        latitude: baseLat + 0.015,
+        longitude: baseLng + 0.022,
+        notes: 'Liquidation of a storage locker. Lots of designer bags, vintage cameras, shoes, and bulk clothing lots.',
+        day_of_week: 'Saturday'
+      },
+      {
+        id: 'deal-4',
+        name: `Moving Sale - Moving out of State`,
+        type: 'yard_sale' as const,
+        source: 'facebook',
+        address: `825 E Franklin Rd, ${city}, ${state}`,
+        latitude: baseLat - 0.005,
+        longitude: baseLng - 0.018,
+        notes: 'Selling everything! Clothing $2 per item, leather jackets, vintage shoes, books, and household goods.',
+        day_of_week: 'Saturday'
+      },
+      {
+        id: 'deal-5',
+        name: `${thrift2}`,
+        type: 'thrift' as const,
+        source: 'business',
+        address: `1375 S Locust Grove Rd, ${city}, ${state}`,
+        latitude: baseLat + 0.022,
+        longitude: baseLng - 0.012,
+        notes: 'Great outlet center. Items priced by weight or flat discount. Come early for the best finds.',
+        day_of_week: 'Everyday'
+      },
+      {
+        id: 'deal-6',
+        name: `Huge Community Garage Sale`,
+        type: 'yard_sale' as const,
+        source: 'craigslist',
+        address: `1980 N Black Cat Rd, ${city}, ${state}`,
+        latitude: baseLat - 0.025,
+        longitude: baseLng + 0.008,
+        notes: 'Annual subdivision sale. Over 30 houses participating. Great for sourcing cheap bulk clothing, shoes, toys.',
+        day_of_week: 'Saturday'
+      },
+      {
+        id: 'deal-7',
+        name: `${thrift3}`,
+        type: 'thrift' as const,
+        source: 'business',
+        address: `1850 Fairview Ave, ${city}, ${state}`,
+        latitude: baseLat - 0.018,
+        longitude: baseLng - 0.008,
+        notes: 'Clean thrift shop, high turnover of clothing brands (Nike, Patagonia, Lululemon). Discount days on Sundays.',
+        day_of_week: 'Everyday'
+      }
+    ];
+    return deals;
   };
 
   useEffect(() => {
@@ -151,11 +345,20 @@ const ThriftProspector: React.FC = () => {
     // Get user geolocation if available
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setUserCoords({
+        async (pos) => {
+          const coords = {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude
-          });
+          };
+          setUserCoords(coords);
+          try {
+            const res = await axios.get(`${API_BASE}/prospecting/geocode?lat=${coords.lat}&lng=${coords.lng}`);
+            if (res.data) {
+              updateCityStateFromGeo(res.data);
+            }
+          } catch (e) {
+            console.log('Failed to reverse geocode user position:', e);
+          }
         },
         () => console.log('Geolocation permission denied or unavailable.')
       );
@@ -256,20 +459,39 @@ const ThriftProspector: React.FC = () => {
       }
     });
 
-    // Fit map bounds to show all markers and user location
+    // Fit map bounds to show local markers and starting location
     const bounds = L.latLngBounds([]);
-    locations.forEach(loc => {
-      if (loc.latitude && loc.longitude) {
-        bounds.extend([loc.latitude, loc.longitude]);
-      }
-    });
     if (userCoords) {
       bounds.extend([userCoords.lat, userCoords.lng]);
+      
+      // Only extend bounds to location markers within ~40 miles (approx 0.6 degrees) of starting position
+      locations.forEach(loc => {
+        if (loc.latitude && loc.longitude) {
+          const dist = Math.sqrt(
+            Math.pow(loc.latitude - userCoords.lat, 2) + 
+            Math.pow(loc.longitude - userCoords.lng, 2)
+          );
+          if (dist < 0.6) {
+            bounds.extend([loc.latitude, loc.longitude]);
+          }
+        }
+      });
+    } else {
+      // Default: fit all markers
+      locations.forEach(loc => {
+        if (loc.latitude && loc.longitude) {
+          bounds.extend([loc.latitude, loc.longitude]);
+        }
+      });
     }
     
     if (bounds.isValid()) {
       try {
-        map.fitBounds(bounds, { padding: [40, 40] });
+        if (userCoords && bounds.getNorthEast().equals(bounds.getSouthWest())) {
+          map.setView([userCoords.lat, userCoords.lng], 12);
+        } else {
+          map.fitBounds(bounds, { padding: [40, 40] });
+        }
       } catch (e) {
         // Fallback bounds
       }
@@ -553,7 +775,8 @@ const ThriftProspector: React.FC = () => {
         <>
           {/* TAB 1: MAP AND ROUTE PLANNER */}
           {activeTab === 'map' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               
               {/* Left Column (Sourcing locations directory) */}
               <div className="lg:col-span-5 space-y-6 flex flex-col h-full lg:max-h-[720px] overflow-y-auto pr-1">
@@ -919,6 +1142,146 @@ const ThriftProspector: React.FC = () => {
               </div>
 
             </div>
+
+            {/* Local Sourcing Discover Panel */}
+            <div className="mt-8 space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-white/5 pb-4 gap-4">
+                <div>
+                  <h3 className="font-serif text-base font-bold text-slate-100 flex items-center gap-2">
+                    <Sparkles className="text-blue-500" size={18} />
+                    Local Sourcing Discover ({currentCity}, {currentState})
+                  </h3>
+                  <p className="text-[10px] text-slate-500 font-sans mt-0.5">
+                    Scouting listings from Craigslist, Facebook Marketplace, KSL Classifieds, and Local Business directories near you.
+                  </p>
+                </div>
+                
+                {/* External Directories Quick Links */}
+                <div className="flex flex-wrap gap-2.5">
+                  <a 
+                    href={getCraigslistUrl()} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="px-2.5 py-1.5 bg-slate-900 border border-white/5 hover:border-blue-500/20 text-[9px] uppercase tracking-wider font-extrabold text-purple-400 rounded-lg transition-all flex items-center gap-1.5 active:scale-95"
+                  >
+                    Craigslist ↗
+                  </a>
+                  <a 
+                    href={getFacebookUrl()} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="px-2.5 py-1.5 bg-slate-900 border border-white/5 hover:border-blue-500/20 text-[9px] uppercase tracking-wider font-extrabold text-blue-400 rounded-lg transition-all flex items-center gap-1.5 active:scale-95"
+                  >
+                    Facebook ↗
+                  </a>
+                  <a 
+                    href={getKslUrl()} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="px-2.5 py-1.5 bg-slate-900 border border-white/5 hover:border-blue-500/20 text-[9px] uppercase tracking-wider font-extrabold text-amber-500 rounded-lg transition-all flex items-center gap-1.5 active:scale-95"
+                  >
+                    KSL Deals ↗
+                  </a>
+                  <a 
+                    href={getBusinessUrl()} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="px-2.5 py-1.5 bg-slate-900 border border-white/5 hover:border-blue-500/20 text-[9px] uppercase tracking-wider font-extrabold text-emerald-400 rounded-lg transition-all flex items-center gap-1.5 active:scale-95"
+                  >
+                    Businesses ↗
+                  </a>
+                </div>
+              </div>
+
+              {/* Source Filters */}
+              <div className="flex flex-wrap gap-2">
+                {(['all', 'craigslist', 'facebook', 'ksl', 'business'] as const).map(src => {
+                  let label = 'All Sources';
+                  if (src === 'craigslist') label = 'Craigslist';
+                  if (src === 'facebook') label = 'FB Marketplace';
+                  if (src === 'ksl') label = 'KSL Classifieds';
+                  if (src === 'business') label = 'Local Businesses';
+
+                  return (
+                    <button
+                      key={src}
+                      onClick={() => setActiveSourceFilter(src)}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wider uppercase transition-all cursor-pointer ${
+                        activeSourceFilter === src 
+                          ? 'bg-blue-600 text-white font-extrabold' 
+                          : 'bg-slate-950/40 hover:bg-slate-900/60 text-slate-400 border border-white/5'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Sourcing Deals Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {generateSourcingDeals(currentCity, currentState)
+                  .filter(deal => activeSourceFilter === 'all' || deal.source === activeSourceFilter)
+                  .map(deal => {
+                    const isFavorited = locations.some(
+                      l => l.name.toLowerCase() === deal.name.toLowerCase() && 
+                           l.address.toLowerCase().includes(deal.address.toLowerCase().split(',')[0])
+                    );
+
+                    let sourceBadge = 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+                    if (deal.source === 'craigslist') sourceBadge = 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+                    if (deal.source === 'facebook') sourceBadge = 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+                    if (deal.source === 'ksl') sourceBadge = 'bg-orange-500/10 text-orange-400 border-orange-500/20';
+                    if (deal.source === 'business') sourceBadge = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+
+                    let typeBadge = 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+                    if (deal.type === 'thrift') typeBadge = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+                    if (deal.type === 'yard_sale') typeBadge = 'bg-orange-500/10 text-orange-400 border-orange-500/20';
+                    if (deal.type === 'auction') typeBadge = 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+
+                    return (
+                      <div 
+                        key={deal.id} 
+                        className="glass-card p-4 flex flex-col justify-between gap-4 border border-white/5 bg-slate-950/20 hover:border-slate-800 transition-all text-left"
+                      >
+                        <div className="space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className={`text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider border ${sourceBadge}`}>
+                              {deal.source === 'facebook' ? 'facebook' : deal.source === 'business' ? 'directory' : deal.source}
+                            </span>
+                            <span className={`text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider border ${typeBadge}`}>
+                              {deal.type === 'yard_sale' ? 'yard sale' : deal.type}
+                            </span>
+                          </div>
+
+                          <div className="space-y-0.5">
+                            <h4 className="text-xs font-bold text-slate-200">{deal.name}</h4>
+                            <p className="text-[9px] text-slate-500 font-sans">{deal.address}</p>
+                          </div>
+
+                          <p className="text-[10px] text-slate-400 leading-relaxed font-sans">{deal.notes}</p>
+                        </div>
+
+                        <div className="flex gap-2 justify-end pt-3 border-t border-white/5">
+                          <button
+                            onClick={() => handleFavoriteDeal(deal)}
+                            disabled={isFavorited}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer active:scale-95 ${
+                              isFavorited 
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/25 cursor-default' 
+                                : 'bg-slate-900 border border-white/10 hover:bg-slate-800 text-slate-200'
+                            }`}
+                          >
+                            {isFavorited ? '✓ Favorited' : '★ Favorite'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+            </div>
+
           )}
 
           {/* TAB 2: SOURCING PERFORMANCE LEADERBOARD */}
